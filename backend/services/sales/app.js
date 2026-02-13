@@ -156,10 +156,6 @@ function validateLines(lines) {
       errors.push(`${prefix}.sales doit etre >= 0`);
     }
 
-    if (profit !== null && profit < 0) {
-      errors.push(`${prefix}.profit doit etre >= 0`);
-    }
-
     if (sales !== null && unitPrice !== null && Number.isInteger(quantity) && quantity > 0) {
       const expectedSales = quantity * unitPrice * (1 - (discount || 0));
       if (Math.abs(sales - expectedSales) > 0.05) {

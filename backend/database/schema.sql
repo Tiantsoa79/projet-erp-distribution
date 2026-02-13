@@ -133,20 +133,21 @@ CREATE TABLE IF NOT EXISTS order_lines (
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'order_lines_business_values_check'
   ) THEN
-    ALTER TABLE order_lines
-      ADD CONSTRAINT order_lines_business_values_check
-      CHECK (
-        (quantity IS NULL OR quantity > 0)
-        AND (discount IS NULL OR (discount >= 0 AND discount <= 1))
-        AND (sales IS NULL OR sales >= 0)
-        AND (unit_price IS NULL OR unit_price >= 0)
-        AND (cost IS NULL OR cost >= 0)
-        AND (profit IS NULL OR profit >= 0)
-      );
+    ALTER TABLE order_lines DROP CONSTRAINT order_lines_business_values_check;
   END IF;
+
+  ALTER TABLE order_lines
+    ADD CONSTRAINT order_lines_business_values_check
+    CHECK (
+      (quantity IS NULL OR quantity > 0)
+      AND (discount IS NULL OR (discount >= 0 AND discount <= 1))
+      AND (sales IS NULL OR sales >= 0)
+      AND (unit_price IS NULL OR unit_price >= 0)
+      AND (cost IS NULL OR cost >= 0)
+    );
 END $$;
 
 CREATE TABLE IF NOT EXISTS order_status_history (
