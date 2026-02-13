@@ -13,10 +13,24 @@ app.use(express.json());
 app.use(cookieParser());
 
 const GATEWAY_PORT = Number(process.env.GATEWAY_PORT || 4000);
-const JWT_SECRET = process.env.GATEWAY_JWT_SECRET || 'change_me';
+const JWT_SECRET = process.env.GATEWAY_JWT_SECRET || 'dev_only_insecure_secret';
 const JWT_EXPIRES_IN = process.env.GATEWAY_JWT_EXPIRES_IN || '8h';
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'erp_session';
 const COOKIE_SECURE = (process.env.SESSION_COOKIE_SECURE || 'false').toLowerCase() === 'true';
+
+const hasWeakJwtSecret =
+  !JWT_SECRET
+  || JWT_SECRET === 'change_me'
+  || JWT_SECRET === 'change_me_gateway'
+  || JWT_SECRET === 'dev_only_insecure_secret'
+  || JWT_SECRET.length < 16;
+
+if (hasWeakJwtSecret) {
+  if ((process.env.NODE_ENV || 'development') === 'production') {
+    throw new Error('GATEWAY_JWT_SECRET must be set with at least 16 characters in production.');
+  }
+  console.warn('[gateway] Weak or missing GATEWAY_JWT_SECRET detected (dev mode only).');
+}
 
 const SERVICE_URLS = {
   sales: process.env.SALES_SERVICE_URL || 'http://localhost:4001',

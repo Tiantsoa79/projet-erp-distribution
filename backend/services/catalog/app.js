@@ -56,6 +56,18 @@ function parsePositiveInt(value, fallback) {
   return parsed;
 }
 
+function normalizeNullableString(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized === '' ? null : normalized;
+}
+
+function toNumberOrNull(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -90,8 +102,43 @@ app.post('/products', async (req, res, next) => {
     supplier_name,
   } = req.body;
 
-  if (!product_name) {
-    return res.status(400).json({ message: 'product_name est requis.' });
+  const normalizedName = normalizeNullableString(product_name);
+  const normalizedCategory = normalizeNullableString(category);
+  const normalizedSubCategory = normalizeNullableString(sub_category);
+  const normalizedWarehouseLocation = normalizeNullableString(warehouse_location);
+
+  const normalizedUnitCost = toNumberOrNull(unit_cost);
+  const normalizedUnitPrice = toNumberOrNull(unit_price);
+  const normalizedStockQuantity = toNumberOrNull(stock_quantity);
+  const normalizedReorderLevel = toNumberOrNull(reorder_level);
+  const normalizedReorderQuantity = toNumberOrNull(reorder_quantity);
+
+  const validationErrors = [];
+  if (!normalizedName) {
+    validationErrors.push('product_name est requis.');
+  }
+  if (normalizedUnitCost !== null && normalizedUnitCost < 0) {
+    validationErrors.push('unit_cost doit etre >= 0.');
+  }
+  if (normalizedUnitPrice !== null && normalizedUnitPrice < 0) {
+    validationErrors.push('unit_price doit etre >= 0.');
+  }
+  if (normalizedStockQuantity !== null && (!Number.isInteger(normalizedStockQuantity) || normalizedStockQuantity < 0)) {
+    validationErrors.push('stock_quantity doit etre un entier >= 0.');
+  }
+  if (normalizedReorderLevel !== null && (!Number.isInteger(normalizedReorderLevel) || normalizedReorderLevel < 0)) {
+    validationErrors.push('reorder_level doit etre un entier >= 0.');
+  }
+  if (normalizedReorderQuantity !== null && (!Number.isInteger(normalizedReorderQuantity) || normalizedReorderQuantity < 0)) {
+    validationErrors.push('reorder_quantity doit etre un entier >= 0.');
+  }
+
+  if (validationErrors.length > 0) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: validationErrors,
+    });
   }
 
   const client = await pool.connect();
@@ -100,6 +147,25 @@ app.post('/products', async (req, res, next) => {
     const actor = buildAuditActor(req.headers);
     const finalProductId = product_id || await generateNextProductId(client);
     const finalSupplierId = await resolveSupplierId(client, supplier_id, supplier_name);
+
+    const duplicateResult = await client.query(
+      `
+      SELECT product_id
+      FROM products
+      WHERE LOWER(product_name) = LOWER($1)
+        AND COALESCE(supplier_id, '') = COALESCE($2, '')
+      LIMIT 1
+      `,
+      [normalizedName, finalSupplierId]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'PRODUCT_DUPLICATE',
+        message: 'Un produit avec le meme nom existe deja pour ce fournisseur.',
+        product_id: duplicateResult.rows[0].product_id,
+      });
+    }
 
     await client.query('BEGIN');
     inTransaction = true;
@@ -116,15 +182,15 @@ app.post('/products', async (req, res, next) => {
       `,
       [
         finalProductId,
-        product_name,
-        category || null,
-        sub_category || null,
-        unit_cost ?? null,
-        unit_price ?? null,
-        stock_quantity ?? null,
-        reorder_level ?? null,
-        reorder_quantity ?? null,
-        warehouse_location || null,
+        normalizedName,
+        normalizedCategory,
+        normalizedSubCategory,
+        normalizedUnitCost,
+        normalizedUnitPrice,
+        normalizedStockQuantity,
+        normalizedReorderLevel,
+        normalizedReorderQuantity,
+        normalizedWarehouseLocation,
         finalSupplierId,
       ]
     );
@@ -171,6 +237,42 @@ app.patch('/products/:productId', async (req, res, next) => {
     supplier_name,
   } = req.body;
 
+  const normalizedName = normalizeNullableString(product_name);
+  const normalizedCategory = normalizeNullableString(category);
+  const normalizedSubCategory = normalizeNullableString(sub_category);
+  const normalizedWarehouseLocation = normalizeNullableString(warehouse_location);
+
+  const normalizedUnitCost = toNumberOrNull(unit_cost);
+  const normalizedUnitPrice = toNumberOrNull(unit_price);
+  const normalizedStockQuantity = toNumberOrNull(stock_quantity);
+  const normalizedReorderLevel = toNumberOrNull(reorder_level);
+  const normalizedReorderQuantity = toNumberOrNull(reorder_quantity);
+
+  const validationErrors = [];
+  if (normalizedUnitCost !== null && normalizedUnitCost < 0) {
+    validationErrors.push('unit_cost doit etre >= 0.');
+  }
+  if (normalizedUnitPrice !== null && normalizedUnitPrice < 0) {
+    validationErrors.push('unit_price doit etre >= 0.');
+  }
+  if (normalizedStockQuantity !== null && (!Number.isInteger(normalizedStockQuantity) || normalizedStockQuantity < 0)) {
+    validationErrors.push('stock_quantity doit etre un entier >= 0.');
+  }
+  if (normalizedReorderLevel !== null && (!Number.isInteger(normalizedReorderLevel) || normalizedReorderLevel < 0)) {
+    validationErrors.push('reorder_level doit etre un entier >= 0.');
+  }
+  if (normalizedReorderQuantity !== null && (!Number.isInteger(normalizedReorderQuantity) || normalizedReorderQuantity < 0)) {
+    validationErrors.push('reorder_quantity doit etre un entier >= 0.');
+  }
+
+  if (validationErrors.length > 0) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: validationErrors,
+    });
+  }
+
   const client = await pool.connect();
   let inTransaction = false;
   try {
@@ -188,6 +290,29 @@ app.patch('/products/:productId', async (req, res, next) => {
 
     if (beforeResult.rowCount === 0) {
       return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const effectiveName = normalizedName || beforeResult.rows[0].product_name;
+    const effectiveSupplierId = finalSupplierId === null ? beforeResult.rows[0].supplier_id : finalSupplierId;
+
+    const duplicateResult = await client.query(
+      `
+      SELECT product_id
+      FROM products
+      WHERE product_id <> $1
+        AND LOWER(product_name) = LOWER($2)
+        AND COALESCE(supplier_id, '') = COALESCE($3, '')
+      LIMIT 1
+      `,
+      [productId, effectiveName, effectiveSupplierId]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'PRODUCT_DUPLICATE',
+        message: 'Un produit avec le meme nom existe deja pour ce fournisseur.',
+        product_id: duplicateResult.rows[0].product_id,
+      });
     }
 
     await client.query('BEGIN');
@@ -213,15 +338,15 @@ app.patch('/products/:productId', async (req, res, next) => {
       `,
       [
         productId,
-        product_name,
-        category,
-        sub_category,
-        unit_cost,
-        unit_price,
-        stock_quantity,
-        reorder_level,
-        reorder_quantity,
-        warehouse_location,
+        normalizedName,
+        normalizedCategory,
+        normalizedSubCategory,
+        normalizedUnitCost,
+        normalizedUnitPrice,
+        normalizedStockQuantity,
+        normalizedReorderLevel,
+        normalizedReorderQuantity,
+        normalizedWarehouseLocation,
         finalSupplierId,
       ]
     );

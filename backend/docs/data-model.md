@@ -170,6 +170,10 @@ erDiagram
 ## 4. Contraintes clés
 
 - `orders_ship_date_after_order_date_check`
+- `suppliers_rating_range_check` (rating entre 0 et 5)
+- `suppliers_lead_time_non_negative_check` (lead_time_days >= 0)
+- `products_non_negative_values_check` (unit_cost, unit_price, stock/reorder >= 0)
+- `order_lines_business_values_check` (quantity > 0, discount 0..1, montants >= 0)
 - `status` des périodes comptables limité à `open|closed`
 - suppression cascade `orders -> order_lines` et `orders -> order_status_history`
 - clés uniques sur `username`, `role_code`, `permission_code`

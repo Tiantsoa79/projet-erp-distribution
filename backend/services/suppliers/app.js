@@ -19,6 +19,22 @@ async function generateNextSupplierId(client) {
   return `SUP-${String(nextId).padStart(3, '0')}`;
 }
 
+function normalizeNullableString(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized === '' ? null : normalized;
+}
+
+function toNumberOrNull(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isValidEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -83,8 +99,34 @@ app.post('/suppliers', async (req, res, next) => {
     active,
   } = req.body;
 
-  if (!supplier_name) {
-    return res.status(400).json({ message: 'supplier_name est requis.' });
+  const normalizedName = normalizeNullableString(supplier_name);
+  const normalizedCountry = normalizeNullableString(country);
+  const normalizedEmail = normalizeNullableString(contact_email);
+  const normalizedPhone = normalizeNullableString(contact_phone);
+  const normalizedPaymentTerms = normalizeNullableString(payment_terms);
+  const normalizedRating = toNumberOrNull(rating);
+  const normalizedLeadTime = toNumberOrNull(lead_time_days);
+
+  const validationErrors = [];
+  if (!normalizedName) {
+    validationErrors.push('supplier_name est requis.');
+  }
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+    validationErrors.push('contact_email invalide.');
+  }
+  if (normalizedRating !== null && (normalizedRating < 0 || normalizedRating > 5)) {
+    validationErrors.push('rating doit etre entre 0 et 5.');
+  }
+  if (normalizedLeadTime !== null && (!Number.isInteger(normalizedLeadTime) || normalizedLeadTime < 0)) {
+    validationErrors.push('lead_time_days doit etre un entier >= 0.');
+  }
+
+  if (validationErrors.length > 0) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: validationErrors,
+    });
   }
 
   const client = await pool.connect();
@@ -92,6 +134,25 @@ app.post('/suppliers', async (req, res, next) => {
   try {
     const actor = buildAuditActor(req.headers);
     const finalSupplierId = supplier_id || await generateNextSupplierId(client);
+
+    const duplicateResult = await client.query(
+      `
+      SELECT supplier_id
+      FROM suppliers
+      WHERE LOWER(supplier_name) = LOWER($1)
+        AND COALESCE(LOWER(country), '') = COALESCE(LOWER($2), '')
+      LIMIT 1
+      `,
+      [normalizedName, normalizedCountry]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'SUPPLIER_DUPLICATE',
+        message: 'Un fournisseur avec le meme nom et pays existe deja.',
+        supplier_id: duplicateResult.rows[0].supplier_id,
+      });
+    }
 
     await client.query('BEGIN');
     inTransaction = true;
@@ -108,13 +169,13 @@ app.post('/suppliers', async (req, res, next) => {
       `,
       [
         finalSupplierId,
-        supplier_name,
-        country || null,
-        contact_email || null,
-        contact_phone || null,
-        rating ?? null,
-        lead_time_days ?? null,
-        payment_terms || null,
+        normalizedName,
+        normalizedCountry,
+        normalizedEmail,
+        normalizedPhone,
+        normalizedRating,
+        normalizedLeadTime,
+        normalizedPaymentTerms,
         active ?? true,
       ]
     );
@@ -149,6 +210,33 @@ app.patch('/suppliers/:supplierId', async (req, res, next) => {
   const { supplierId } = req.params;
   const { supplier_name, country, contact_email, contact_phone, rating, lead_time_days, payment_terms, active } = req.body;
 
+  const normalizedName = normalizeNullableString(supplier_name);
+  const normalizedCountry = normalizeNullableString(country);
+  const normalizedEmail = normalizeNullableString(contact_email);
+  const normalizedPhone = normalizeNullableString(contact_phone);
+  const normalizedPaymentTerms = normalizeNullableString(payment_terms);
+  const normalizedRating = toNumberOrNull(rating);
+  const normalizedLeadTime = toNumberOrNull(lead_time_days);
+
+  const validationErrors = [];
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+    validationErrors.push('contact_email invalide.');
+  }
+  if (normalizedRating !== null && (normalizedRating < 0 || normalizedRating > 5)) {
+    validationErrors.push('rating doit etre entre 0 et 5.');
+  }
+  if (normalizedLeadTime !== null && (!Number.isInteger(normalizedLeadTime) || normalizedLeadTime < 0)) {
+    validationErrors.push('lead_time_days doit etre un entier >= 0.');
+  }
+
+  if (validationErrors.length > 0) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: validationErrors,
+    });
+  }
+
   const client = await pool.connect();
   let inTransaction = false;
   try {
@@ -165,6 +253,31 @@ app.patch('/suppliers/:supplierId', async (req, res, next) => {
 
     if (beforeResult.rowCount === 0) {
       return res.status(404).json({ message: 'Supplier not found' });
+    }
+
+    const effectiveName = normalizedName || beforeResult.rows[0].supplier_name;
+    const effectiveCountry = normalizedCountry === null
+      ? beforeResult.rows[0].country
+      : normalizedCountry;
+
+    const duplicateResult = await client.query(
+      `
+      SELECT supplier_id
+      FROM suppliers
+      WHERE supplier_id <> $1
+        AND LOWER(supplier_name) = LOWER($2)
+        AND COALESCE(LOWER(country), '') = COALESCE(LOWER($3), '')
+      LIMIT 1
+      `,
+      [supplierId, effectiveName, effectiveCountry]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'SUPPLIER_DUPLICATE',
+        message: 'Un fournisseur avec le meme nom et pays existe deja.',
+        supplier_id: duplicateResult.rows[0].supplier_id,
+      });
     }
 
     await client.query('BEGIN');
@@ -185,7 +298,17 @@ app.patch('/suppliers/:supplierId', async (req, res, next) => {
       WHERE supplier_id = $1
       RETURNING supplier_id, supplier_name, country, contact_email, contact_phone, rating, lead_time_days, payment_terms, active, updated_at
       `,
-      [supplierId, supplier_name, country, contact_email, contact_phone, rating, lead_time_days, payment_terms, active]
+      [
+        supplierId,
+        normalizedName,
+        normalizedCountry,
+        normalizedEmail,
+        normalizedPhone,
+        normalizedRating,
+        normalizedLeadTime,
+        normalizedPaymentTerms,
+        active,
+      ]
     );
 
     await recordAudit(client, {

@@ -83,6 +83,40 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'suppliers_rating_range_check'
+  ) THEN
+    ALTER TABLE suppliers
+      ADD CONSTRAINT suppliers_rating_range_check
+      CHECK (rating IS NULL OR (rating >= 0 AND rating <= 5));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'suppliers_lead_time_non_negative_check'
+  ) THEN
+    ALTER TABLE suppliers
+      ADD CONSTRAINT suppliers_lead_time_non_negative_check
+      CHECK (lead_time_days IS NULL OR lead_time_days >= 0);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'products_non_negative_values_check'
+  ) THEN
+    ALTER TABLE products
+      ADD CONSTRAINT products_non_negative_values_check
+      CHECK (
+        (unit_cost IS NULL OR unit_cost >= 0)
+        AND (unit_price IS NULL OR unit_price >= 0)
+        AND (stock_quantity IS NULL OR stock_quantity >= 0)
+        AND (reorder_level IS NULL OR reorder_level >= 0)
+        AND (reorder_quantity IS NULL OR reorder_quantity >= 0)
+      );
+  END IF;
+
+END $$;
+
 CREATE TABLE IF NOT EXISTS order_lines (
   row_id INTEGER PRIMARY KEY,
   order_id VARCHAR(32) NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
@@ -96,6 +130,24 @@ CREATE TABLE IF NOT EXISTS order_lines (
   created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'order_lines_business_values_check'
+  ) THEN
+    ALTER TABLE order_lines
+      ADD CONSTRAINT order_lines_business_values_check
+      CHECK (
+        (quantity IS NULL OR quantity > 0)
+        AND (discount IS NULL OR (discount >= 0 AND discount <= 1))
+        AND (sales IS NULL OR sales >= 0)
+        AND (unit_price IS NULL OR unit_price >= 0)
+        AND (cost IS NULL OR cost >= 0)
+        AND (profit IS NULL OR profit >= 0)
+      );
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS order_status_history (
   id BIGSERIAL PRIMARY KEY,

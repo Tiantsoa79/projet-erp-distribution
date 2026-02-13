@@ -25,6 +25,16 @@ function parsePositiveInt(value, fallback) {
   return parsed;
 }
 
+function normalizeNullableString(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized === '' ? null : normalized;
+}
+
+function isValidEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -72,8 +82,23 @@ app.get('/customers/:customerId', async (req, res, next) => {
 app.post('/customers', async (req, res, next) => {
   const { customer_id, customer_name, segment, city, state, region, email } = req.body;
 
-  if (!customer_name) {
-    return res.status(400).json({ message: 'customer_name est requis.' });
+  const normalizedName = normalizeNullableString(customer_name);
+  const normalizedEmail = normalizeNullableString(email);
+
+  const validationErrors = [];
+  if (!normalizedName) {
+    validationErrors.push('customer_name est requis.');
+  }
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+    validationErrors.push('email invalide.');
+  }
+
+  if (validationErrors.length > 0) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: validationErrors,
+    });
   }
 
   const client = await pool.connect();
@@ -81,6 +106,25 @@ app.post('/customers', async (req, res, next) => {
   try {
     const actor = buildAuditActor(req.headers);
     const finalCustomerId = customer_id || await generateNextCustomerId(client);
+
+    const duplicateResult = await client.query(
+      `
+      SELECT customer_id
+      FROM customers
+      WHERE LOWER(customer_name) = LOWER($1)
+        AND COALESCE(LOWER(email), '') = COALESCE(LOWER($2), '')
+      LIMIT 1
+      `,
+      [normalizedName, normalizedEmail]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'CUSTOMER_DUPLICATE',
+        message: 'Un client avec le meme nom et email existe deja.',
+        customer_id: duplicateResult.rows[0].customer_id,
+      });
+    }
 
     await client.query('BEGIN');
     inTransaction = true;
@@ -91,7 +135,15 @@ app.post('/customers', async (req, res, next) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING customer_id, customer_name, segment, city, state, region, email, created_at
       `,
-      [finalCustomerId, customer_name, segment || null, city || null, state || null, region || null, email || null]
+      [
+        finalCustomerId,
+        normalizedName,
+        normalizeNullableString(segment),
+        normalizeNullableString(city),
+        normalizeNullableString(state),
+        normalizeNullableString(region),
+        normalizedEmail,
+      ]
     );
 
     await recordAudit(client, {
@@ -124,6 +176,16 @@ app.patch('/customers/:customerId', async (req, res, next) => {
   const { customerId } = req.params;
   const { customer_name, segment, city, state, region, email } = req.body;
 
+  const normalizedName = normalizeNullableString(customer_name);
+  const normalizedEmail = normalizeNullableString(email);
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+    return res.status(422).json({
+      code: 'BUSINESS_VALIDATION_FAILED',
+      message: 'Validation metier echouee',
+      errors: ['email invalide.'],
+    });
+  }
+
   const client = await pool.connect();
   let inTransaction = false;
   try {
@@ -138,6 +200,31 @@ app.patch('/customers/:customerId', async (req, res, next) => {
     );
 
     if (beforeResult.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
+
+    const effectiveName = normalizedName || beforeResult.rows[0].customer_name;
+    const effectiveEmail = normalizedEmail === null
+      ? beforeResult.rows[0].email
+      : normalizedEmail;
+
+    const duplicateResult = await client.query(
+      `
+      SELECT customer_id
+      FROM customers
+      WHERE customer_id <> $1
+        AND LOWER(customer_name) = LOWER($2)
+        AND COALESCE(LOWER(email), '') = COALESCE(LOWER($3), '')
+      LIMIT 1
+      `,
+      [customerId, effectiveName, effectiveEmail]
+    );
+
+    if (duplicateResult.rowCount > 0) {
+      return res.status(409).json({
+        code: 'CUSTOMER_DUPLICATE',
+        message: 'Un client avec le meme nom et email existe deja.',
+        customer_id: duplicateResult.rows[0].customer_id,
+      });
+    }
 
     await client.query('BEGIN');
     inTransaction = true;
@@ -155,7 +242,15 @@ app.patch('/customers/:customerId', async (req, res, next) => {
       WHERE customer_id = $1
       RETURNING customer_id, customer_name, segment, city, state, region, email, updated_at
       `,
-      [customerId, customer_name, segment, city, state, region, email]
+      [
+        customerId,
+        normalizedName,
+        normalizeNullableString(segment),
+        normalizeNullableString(city),
+        normalizeNullableString(state),
+        normalizeNullableString(region),
+        normalizedEmail,
+      ]
     );
 
     await recordAudit(client, {
