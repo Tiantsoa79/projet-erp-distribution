@@ -2,6 +2,22 @@
 
 Guide complet (debutant-friendly) pour lancer, tester et comprendre le backend ERP.
 
+## 0) Positionnement conceptuel: ERP, OLTP et SOA
+
+Ce dossier `backend/` correspond au **coeur ERP operationnel (OLTP)** du projet.
+
+- **ERP**: il porte la gestion des processus metier (ventes, catalogue, clients, fournisseurs, administration des acces).
+- **OLTP**: il gere les transactions en temps reel (create/update/delete/transition), la coherence immediate et les validations metier.
+- **SOA**: il expose les services metier via API REST, avec une gateway d'entree et routage vers des services decouples.
+
+Ce perimetre couvre donc la couche transactionnelle. La couche decisionnelle (ETL + Data Warehouse + OLAP/BI)
+est implementee dans un dossier separe: `../olap/`.
+
+En pratique:
+
+- `backend/` = production operationnelle (OLTP/ERP),
+- `olap/` = consommation analytique (staging, modelisation etoile, chargements de faits/dimensions).
+
 ## 1) Vue d'ensemble
 
 Le backend contient 5 services Node.js:
@@ -13,6 +29,11 @@ Le backend contient 5 services Node.js:
 5. `suppliers` (port 4004)
 
 Base de donnees: PostgreSQL (`erp_distribution`) alimentee par les CSV (`../data`).
+
+Pour la partie decisionnelle liee aux exigences BI/Data Warehouse:
+
+- voir `../olap/README.md`,
+- voir `../olap/docs/architecture-olap.md`.
 
 ## 2) Etat des iterations
 
