@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../../database/connection');
+const { buildAuditActor, recordAudit } = require('../../utils/audit');
 
 const app = express();
 app.use(express.json());
@@ -7,6 +8,19 @@ app.use(express.json());
 const SUPPLIERS_SERVICE_PORT = Number(
   process.env.SUPPLIERS_SERVICE_PORT || process.env.SUPPLIER_SERVICE_PORT || 4004
 );
+
+async function generateNextSupplierId(client) {
+  const result = await client.query(
+    `
+    SELECT COALESCE(MAX((regexp_match(supplier_id, '^SUP-(\\d+)$'))[1]::int), 0) AS max_id
+    FROM suppliers
+    WHERE supplier_id ~ '^SUP-\\d+$'
+    `
+  );
+
+  const nextId = Number(result.rows[0].max_id) + 1;
+  return `SUP-${String(nextId).padStart(3, '0')}`;
+}
 
 app.get('/health', async (_req, res) => {
   try {
@@ -59,12 +73,107 @@ app.get('/suppliers/:supplierId', async (req, res, next) => {
   }
 });
 
+app.post('/suppliers', async (req, res, next) => {
+  const {
+    supplier_id,
+    supplier_name,
+    country,
+    contact_email,
+    contact_phone,
+    rating,
+    lead_time_days,
+    payment_terms,
+    active,
+  } = req.body;
+
+  if (!supplier_name) {
+    return res.status(400).json({ message: 'supplier_name est requis.' });
+  }
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const actor = buildAuditActor(req.headers);
+    const finalSupplierId = supplier_id || await generateNextSupplierId(client);
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const result = await client.query(
+      `
+      INSERT INTO suppliers (
+        supplier_id, supplier_name, country, contact_email,
+        contact_phone, rating, lead_time_days, payment_terms, active
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING supplier_id, supplier_name, country, contact_email, contact_phone,
+                rating, lead_time_days, payment_terms, active, created_at
+      `,
+      [
+        finalSupplierId,
+        supplier_name,
+        country || null,
+        contact_email || null,
+        contact_phone || null,
+        rating ?? null,
+        lead_time_days ?? null,
+        payment_terms || null,
+        active ?? true,
+      ]
+    );
+
+    await recordAudit(client, {
+      entityType: 'supplier',
+      entityId: finalSupplierId,
+      action: 'supplier.create',
+      beforeState: null,
+      afterState: result.rows[0],
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'suppliers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(201).json({ item: result.rows[0] });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    return next(error);
+  } finally {
+    client.release();
+  }
+});
+
 app.patch('/suppliers/:supplierId', async (req, res, next) => {
   const { supplierId } = req.params;
   const { supplier_name, country, contact_email, contact_phone, rating, lead_time_days, payment_terms, active } = req.body;
 
+  const client = await pool.connect();
+  let inTransaction = false;
   try {
-    const result = await pool.query(
+    const actor = buildAuditActor(req.headers);
+    const beforeResult = await client.query(
+      `
+      SELECT supplier_id, supplier_name, country, contact_email, contact_phone,
+             rating, lead_time_days, payment_terms, active
+      FROM suppliers
+      WHERE supplier_id = $1
+      `,
+      [supplierId]
+    );
+
+    if (beforeResult.rowCount === 0) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const result = await client.query(
       `
       UPDATE suppliers
       SET supplier_name = COALESCE($2, supplier_name),
@@ -82,18 +191,87 @@ app.patch('/suppliers/:supplierId', async (req, res, next) => {
       [supplierId, supplier_name, country, contact_email, contact_phone, rating, lead_time_days, payment_terms, active]
     );
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Supplier not found' });
-    }
+    await recordAudit(client, {
+      entityType: 'supplier',
+      entityId: supplierId,
+      action: 'supplier.update',
+      beforeState: beforeResult.rows[0],
+      afterState: result.rows[0],
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'suppliers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
 
     return res.status(200).json({ item: result.rows[0] });
   } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
     return next(error);
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/suppliers/:supplierId', async (req, res, next) => {
+  const { supplierId } = req.params;
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const actor = buildAuditActor(req.headers);
+    const beforeResult = await client.query(
+      `
+      SELECT supplier_id, supplier_name, country, contact_email, contact_phone,
+             rating, lead_time_days, payment_terms, active
+      FROM suppliers
+      WHERE supplier_id = $1
+      `,
+      [supplierId]
+    );
+
+    if (beforeResult.rowCount === 0) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    await client.query('DELETE FROM suppliers WHERE supplier_id = $1', [supplierId]);
+
+    await recordAudit(client, {
+      entityType: 'supplier',
+      entityId: supplierId,
+      action: 'supplier.delete',
+      beforeState: beforeResult.rows[0],
+      afterState: null,
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'suppliers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(200).json({ message: 'Supplier deleted', supplier_id: supplierId });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    return next(error);
+  } finally {
+    client.release();
   }
 });
 
 app.use((error, _req, res, _next) => {
-  res.status(500).json({ message: 'Supplier service error', detail: error.message });
+  const status = error.code === '23505' || error.code === '23503' ? 409 : 500;
+  res.status(status).json({ message: 'Supplier service error', detail: error.message });
 });
 
 app.listen(SUPPLIERS_SERVICE_PORT, () => {

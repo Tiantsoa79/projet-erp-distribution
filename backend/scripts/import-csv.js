@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse');
 const { Client } = require('pg');
+const { hashPassword } = require('../utils/password');
 require('dotenv').config();
 
 const backendDir = path.resolve(__dirname, '..');
@@ -187,6 +188,24 @@ async function importSuppliers(client) {
     );
   }
   return rows.length;
+}
+
+async function syncOrderCurrentStatusFromHistory(client) {
+  await client.query(
+    `
+    UPDATE orders o
+    SET current_status = latest.status,
+        updated_at = NOW()
+    FROM (
+      SELECT DISTINCT ON (osh.order_id)
+        osh.order_id,
+        osh.status
+      FROM order_status_history osh
+      ORDER BY osh.order_id, osh.status_date DESC, osh.id DESC
+    ) latest
+    WHERE latest.order_id = o.order_id;
+    `
+  );
 }
 
 async function importCustomers(client) {
@@ -411,6 +430,183 @@ async function importOrderStatus(client) {
   return rows.length;
 }
 
+async function seedRbac(client) {
+  const permissions = [
+    ['orders.read', 'Read orders'],
+    ['orders.create', 'Create orders'],
+    ['orders.update', 'Update orders'],
+    ['orders.delete', 'Delete orders'],
+    ['orders.transition', 'Transition order status'],
+    ['users.manage', 'Manage users'],
+    ['roles.manage', 'Manage role assignments'],
+    ['products.read', 'Read products'],
+    ['products.create', 'Create products'],
+    ['products.update', 'Update products'],
+    ['products.delete', 'Delete products'],
+    ['products.update_stock', 'Update product stock'],
+    ['suppliers.read', 'Read suppliers'],
+    ['suppliers.create', 'Create suppliers'],
+    ['suppliers.update', 'Update suppliers'],
+    ['suppliers.delete', 'Delete suppliers'],
+    ['customers.read', 'Read customers'],
+    ['customers.create', 'Create customers'],
+    ['customers.update', 'Update customers'],
+    ['customers.delete', 'Delete customers'],
+    ['audit.read', 'Read audit logs'],
+  ];
+
+  for (const [permissionCode, permissionName] of permissions) {
+    await client.query(
+      `
+      INSERT INTO permissions (permission_code, permission_name)
+      VALUES ($1, $2)
+      ON CONFLICT (permission_code) DO UPDATE SET
+        permission_name = EXCLUDED.permission_name,
+        updated_at = NOW();
+      `,
+      [permissionCode, permissionName]
+    );
+  }
+
+  const roles = [
+    ['admin', 'Administrator'],
+    ['manager', 'Manager'],
+    ['operator', 'Operator'],
+  ];
+
+  for (const [roleCode, roleName] of roles) {
+    await client.query(
+      `
+      INSERT INTO roles (role_code, role_name)
+      VALUES ($1, $2)
+      ON CONFLICT (role_code) DO UPDATE SET
+        role_name = EXCLUDED.role_name,
+        updated_at = NOW();
+      `,
+      [roleCode, roleName]
+    );
+  }
+
+  const rolePermissions = {
+    admin: permissions.map(([permissionCode]) => permissionCode),
+    manager: [
+      'orders.read',
+      'orders.create',
+      'orders.update',
+      'orders.transition',
+      'products.read',
+      'products.create',
+      'products.update',
+      'products.update_stock',
+      'suppliers.read',
+      'suppliers.create',
+      'suppliers.update',
+      'customers.read',
+      'customers.create',
+      'customers.update',
+      'audit.read',
+    ],
+    operator: ['orders.read', 'products.read', 'suppliers.read', 'customers.read'],
+  };
+
+  for (const [roleCode, permissionCodes] of Object.entries(rolePermissions)) {
+    for (const permissionCode of permissionCodes) {
+      await client.query(
+        `
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.role_id, p.permission_id
+        FROM roles r
+        JOIN permissions p ON p.permission_code = $2
+        WHERE r.role_code = $1
+        ON CONFLICT (role_id, permission_id) DO NOTHING;
+        `,
+        [roleCode, permissionCode]
+      );
+    }
+  }
+
+  const adminUsername = process.env.ADMIN_USER;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminUsername || !adminPassword) {
+    throw new Error('ADMIN_USER et ADMIN_PASSWORD sont requis pour initialiser RBAC.');
+  }
+
+  await client.query(
+    `
+    INSERT INTO users (username, password_hash, full_name, is_active)
+    VALUES ($1, $2, $3, TRUE)
+    ON CONFLICT (username) DO UPDATE SET
+      password_hash = EXCLUDED.password_hash,
+      full_name = EXCLUDED.full_name,
+      is_active = TRUE,
+      updated_at = NOW();
+    `,
+    [adminUsername, hashPassword(adminPassword), 'Platform Administrator']
+  );
+
+  await client.query(
+    `
+    INSERT INTO user_roles (user_id, role_id)
+    SELECT u.user_id, r.role_id
+    FROM users u
+    JOIN roles r ON r.role_code = 'admin'
+    WHERE u.username = $1
+    ON CONFLICT (user_id, role_id) DO NOTHING;
+    `,
+    [adminUsername]
+  );
+}
+
+async function seedAccountingPeriods(client) {
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+
+  const previousMonthDate = new Date(Date.UTC(currentYear, currentMonth - 2, 1));
+  const prevYear = previousMonthDate.getUTCFullYear();
+  const prevMonth = previousMonthDate.getUTCMonth() + 1;
+
+  const periodCode = (year, month) => `${year}${String(month).padStart(2, '0')}`;
+  const periodStart = (year, month) => `${year}-${String(month).padStart(2, '0')}-01`;
+  const periodEnd = (year, month) => {
+    const date = new Date(Date.UTC(year, month, 0));
+    return `${year}-${String(month).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const periods = [
+    {
+      period_code: periodCode(prevYear, prevMonth),
+      start_date: periodStart(prevYear, prevMonth),
+      end_date: periodEnd(prevYear, prevMonth),
+      status: 'closed',
+    },
+    {
+      period_code: periodCode(currentYear, currentMonth),
+      start_date: periodStart(currentYear, currentMonth),
+      end_date: periodEnd(currentYear, currentMonth),
+      status: 'open',
+    },
+  ];
+
+  for (const period of periods) {
+    const isClosed = period.status === 'closed';
+    await client.query(
+      `
+      INSERT INTO accounting_periods (period_code, start_date, end_date, status, closed_at)
+      VALUES ($1, $2, $3, $4, CASE WHEN $5 THEN NOW() ELSE NULL END)
+      ON CONFLICT (period_code) DO UPDATE SET
+        start_date = EXCLUDED.start_date,
+        end_date = EXCLUDED.end_date,
+        status = EXCLUDED.status,
+        closed_at = CASE WHEN EXCLUDED.status = 'closed' THEN NOW() ELSE NULL END,
+        updated_at = NOW();
+      `,
+      [period.period_code, period.start_date, period.end_date, period.status, isClosed]
+    );
+  }
+}
+
 async function main() {
   await ensureDatabaseExists();
 
@@ -423,28 +619,38 @@ async function main() {
   });
 
   await client.connect();
+  let inTransaction = false;
 
   try {
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    await client.query('BEGIN');
+    inTransaction = true;
+    await client.query(schemaSql);
+    await seedRbac(client);
+    await seedAccountingPeriods(client);
+    await client.query('COMMIT');
+    inTransaction = false;
+
     const alreadyImported = await isInitialImportAlreadyDone(client);
     if (alreadyImported) {
       console.log(
-        'Import ignore: la base existe deja et les donnees initiales sont deja chargees.'
+        'CSV import ignore: les donnees initiales existent deja. Schema et RBAC ont ete verifies/mis a jour.'
       );
       return;
     }
 
     await client.query('BEGIN');
-
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-    await client.query(schemaSql);
+    inTransaction = true;
 
     const suppliersCount = await importSuppliers(client);
     const customersCount = await importCustomers(client);
     const productsCount = await importProducts(client);
     const orderLinesCount = await importOrdersAndLines(client);
     const statusCount = await importOrderStatus(client);
+    await syncOrderCurrentStatusFromHistory(client);
 
     await client.query('COMMIT');
+    inTransaction = false;
 
     console.log('Import termine avec succes.');
     console.log(`Suppliers: ${suppliersCount}`);
@@ -453,8 +659,11 @@ async function main() {
     console.log(`Products inventory: ${productsCount.inventory}`);
     console.log(`Order transactions (lignes): ${orderLinesCount}`);
     console.log(`Order status records: ${statusCount}`);
+    console.log('RBAC seed: done (users/roles/permissions).');
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
     console.error("Erreur pendant l'import:", error);
     process.exitCode = 1;
   } finally {

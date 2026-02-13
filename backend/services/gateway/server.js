@@ -2,6 +2,9 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
+const { pool } = require('../../database/connection');
+const { hashPassword, verifyPassword } = require('../../utils/password');
+const { recordAudit } = require('../../utils/audit');
 
 require('dotenv').config();
 
@@ -11,11 +14,9 @@ app.use(cookieParser());
 
 const GATEWAY_PORT = Number(process.env.GATEWAY_PORT || 4000);
 const JWT_SECRET = process.env.GATEWAY_JWT_SECRET || 'change_me';
+const JWT_EXPIRES_IN = process.env.GATEWAY_JWT_EXPIRES_IN || '8h';
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'erp_session';
 const COOKIE_SECURE = (process.env.SESSION_COOKIE_SECURE || 'false').toLowerCase() === 'true';
-
-const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 const SERVICE_URLS = {
   sales: process.env.SALES_SERVICE_URL || 'http://localhost:4001',
@@ -48,6 +49,24 @@ function requireAuth(req, res, next) {
   }
 }
 
+function requirePermission(permissionCode) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+    }
+
+    const grantedPermissions = req.user.permissions || [];
+    if (!grantedPermissions.includes(permissionCode)) {
+      return res.status(403).json({
+        code: 'FORBIDDEN',
+        message: `Missing permission: ${permissionCode}`,
+      });
+    }
+
+    return next();
+  };
+}
+
 function requestContext(req, _res, next) {
   req.requestId = randomUUID();
   next();
@@ -66,7 +85,8 @@ async function forwardRequest(req, res, serviceUrl, gatewayPrefix, upstreamBaseP
   try {
     const headers = {
       'x-request-id': req.requestId,
-      'x-gateway-user': req.user?.sub || 'anonymous',
+      'x-gateway-user': req.user?.username || 'anonymous',
+      'x-gateway-user-id': String(req.user?.user_id || ''),
     };
 
     if (req.headers['content-type']) {
@@ -108,32 +128,89 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ service: 'gateway', status: 'ok' });
 });
 
-app.post('/api/v1/auth/login', (req, res) => {
+app.post('/api/v1/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ code: 'BAD_REQUEST', message: 'username and password are required' });
   }
 
-  if (username !== ADMIN_USER || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+  try {
+    const userResult = await pool.query(
+      `
+      SELECT user_id, username, password_hash, full_name, is_active
+      FROM users
+      WHERE username = $1
+      `,
+      [username]
+    );
+
+    if (userResult.rowCount === 0) {
+      return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+    }
+
+    const user = userResult.rows[0];
+    if (!user.is_active) {
+      return res.status(403).json({ code: 'USER_DISABLED', message: 'User is inactive' });
+    }
+
+    const validPassword = verifyPassword(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+    }
+
+    const accessResult = await pool.query(
+      `
+      SELECT
+        COALESCE(array_agg(DISTINCT r.role_code) FILTER (WHERE r.role_code IS NOT NULL), '{}') AS roles,
+        COALESCE(array_agg(DISTINCT p.permission_code) FILTER (WHERE p.permission_code IS NOT NULL), '{}') AS permissions
+      FROM users u
+      LEFT JOIN user_roles ur ON ur.user_id = u.user_id
+      LEFT JOIN roles r ON r.role_id = ur.role_id
+      LEFT JOIN role_permissions rp ON rp.role_id = r.role_id
+      LEFT JOIN permissions p ON p.permission_id = rp.permission_id
+      WHERE u.user_id = $1
+      `,
+      [user.user_id]
+    );
+
+    const roles = accessResult.rows[0]?.roles || [];
+    const permissions = accessResult.rows[0]?.permissions || [];
+
+    const token = jwt.sign(
+      {
+        user_id: user.user_id,
+        username: user.username,
+        full_name: user.full_name,
+        roles,
+        permissions,
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.cookie(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: COOKIE_SECURE,
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      message: 'Login successful',
+      token,
+      token_type: 'Bearer',
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        full_name: user.full_name,
+        roles,
+        permissions,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ code: 'AUTH_ERROR', message: error.message });
   }
-
-  const token = jwt.sign({ sub: username, role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
-
-  res.cookie(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: COOKIE_SECURE,
-    maxAge: 8 * 60 * 60 * 1000,
-  });
-
-  return res.status(200).json({
-    message: 'Login successful',
-    token,
-    token_type: 'Bearer',
-    expires_in: 28800,
-  });
 });
 
 app.post('/api/v1/auth/logout', (_req, res) => {
@@ -145,16 +222,622 @@ app.get('/api/v1/auth/me', requireAuth, (req, res) => {
   res.status(200).json({ user: req.user });
 });
 
+app.get('/api/v1/authz/matrix', (_req, res) => {
+  res.status(200).json({
+    items: [
+      { method: 'GET', route: '/api/v1/sales/*', permission: 'orders.read' },
+      { method: 'POST', route: '/api/v1/sales/*', permission: 'orders.create' },
+      { method: 'PATCH', route: '/api/v1/sales/*', permission: 'orders.update' },
+      { method: 'DELETE', route: '/api/v1/sales/*', permission: 'orders.delete' },
+      { method: 'POST', route: '/api/v1/sales/orders/:orderId/transition', permission: 'orders.transition' },
+      { method: 'GET', route: '/api/v1/admin/users', permission: 'users.manage' },
+      { method: 'POST', route: '/api/v1/admin/users', permission: 'users.manage' },
+      { method: 'GET', route: '/api/v1/admin/roles', permission: 'roles.manage' },
+      { method: 'GET', route: '/api/v1/admin/users/:userId/roles', permission: 'roles.manage' },
+      { method: 'POST', route: '/api/v1/admin/users/:userId/roles', permission: 'roles.manage' },
+      { method: 'DELETE', route: '/api/v1/admin/users/:userId/roles/:roleCode', permission: 'roles.manage' },
+      { method: 'GET', route: '/api/v1/catalog/*', permission: 'products.read' },
+      { method: 'POST', route: '/api/v1/catalog/*', permission: 'products.create' },
+      { method: 'PATCH', route: '/api/v1/catalog/products/:productId', permission: 'products.update' },
+      { method: 'PATCH', route: '/api/v1/catalog/*', permission: 'products.update_stock' },
+      { method: 'DELETE', route: '/api/v1/catalog/*', permission: 'products.delete' },
+      { method: 'GET', route: '/api/v1/suppliers/*', permission: 'suppliers.read' },
+      { method: 'POST', route: '/api/v1/suppliers/*', permission: 'suppliers.create' },
+      { method: 'PATCH', route: '/api/v1/suppliers/*', permission: 'suppliers.update' },
+      { method: 'DELETE', route: '/api/v1/suppliers/*', permission: 'suppliers.delete' },
+      { method: 'GET', route: '/api/v1/customers/*', permission: 'customers.read' },
+      { method: 'POST', route: '/api/v1/customers/*', permission: 'customers.create' },
+      { method: 'PATCH', route: '/api/v1/customers/*', permission: 'customers.update' },
+      { method: 'DELETE', route: '/api/v1/customers/*', permission: 'customers.delete' },
+      { method: 'GET', route: '/api/v1/audit/logs', permission: 'audit.read' },
+    ],
+  });
+});
+
+app.get('/api/v1/admin/roles', requireAuth, requirePermission('roles.manage'), async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        r.role_id,
+        r.role_code,
+        r.role_name,
+        COALESCE(
+          array_agg(DISTINCT p.permission_code) FILTER (WHERE p.permission_code IS NOT NULL),
+          '{}'
+        ) AS permissions
+      FROM roles r
+      LEFT JOIN role_permissions rp ON rp.role_id = r.role_id
+      LEFT JOIN permissions p ON p.permission_id = rp.permission_id
+      GROUP BY r.role_id
+      ORDER BY r.role_code
+      `
+    );
+
+    return res.status(200).json({ items: result.rows });
+  } catch (error) {
+    return res.status(500).json({ code: 'ROLES_QUERY_ERROR', message: error.message });
+  }
+});
+
+app.get('/api/v1/admin/users', requireAuth, requirePermission('users.manage'), async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+  try {
+    const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM users');
+
+    const result = await pool.query(
+      `
+      SELECT
+        u.user_id,
+        u.username,
+        u.full_name,
+        u.is_active,
+        u.created_at,
+        u.updated_at,
+        COALESCE(
+          array_agg(DISTINCT r.role_code) FILTER (WHERE r.role_code IS NOT NULL),
+          '{}'
+        ) AS roles
+      FROM users u
+      LEFT JOIN user_roles ur ON ur.user_id = u.user_id
+      LEFT JOIN roles r ON r.role_id = ur.role_id
+      GROUP BY u.user_id
+      ORDER BY u.user_id
+      LIMIT $1 OFFSET $2
+      `,
+      [limit, offset]
+    );
+
+    return res.status(200).json({
+      items: result.rows,
+      pagination: { limit, offset, total: countResult.rows[0].total },
+    });
+  } catch (error) {
+    return res.status(500).json({ code: 'USERS_QUERY_ERROR', message: error.message });
+  }
+});
+
+app.post('/api/v1/admin/users', requireAuth, requirePermission('users.manage'), async (req, res) => {
+  const { username, password, full_name, role_codes } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'username and password are required' });
+  }
+
+  if (role_codes !== undefined && !Array.isArray(role_codes)) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'role_codes must be an array if provided' });
+  }
+
+  const normalizedRoleCodes = Array.isArray(role_codes)
+    ? [...new Set(role_codes.map((roleCode) => String(roleCode || '').trim()).filter(Boolean))]
+    : [];
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const userResult = await client.query(
+      `
+      INSERT INTO users (username, password_hash, full_name, is_active)
+      VALUES ($1, $2, $3, TRUE)
+      RETURNING user_id, username, full_name, is_active, created_at, updated_at
+      `,
+      [username, hashPassword(password), full_name || null]
+    );
+
+    const user = userResult.rows[0];
+
+    if (normalizedRoleCodes.length > 0) {
+      const rolesResult = await client.query(
+        `
+        SELECT role_id, role_code
+        FROM roles
+        WHERE role_code = ANY($1::text[])
+        `,
+        [normalizedRoleCodes]
+      );
+
+      const foundRoleCodes = new Set(rolesResult.rows.map((row) => row.role_code));
+      const missingRoles = normalizedRoleCodes.filter((code) => !foundRoleCodes.has(code));
+      if (missingRoles.length > 0) {
+        await client.query('ROLLBACK');
+        inTransaction = false;
+        return res.status(404).json({
+          code: 'ROLE_NOT_FOUND',
+          message: `Unknown role codes: ${missingRoles.join(', ')}`,
+        });
+      }
+
+      for (const role of rolesResult.rows) {
+        await client.query(
+          `
+          INSERT INTO user_roles (user_id, role_id)
+          VALUES ($1, $2)
+          ON CONFLICT (user_id, role_id) DO NOTHING
+          `,
+          [user.user_id, role.role_id]
+        );
+      }
+    }
+
+    const assignedRolesResult = await client.query(
+      `
+      SELECT COALESCE(array_agg(r.role_code ORDER BY r.role_code), '{}') AS roles
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      `,
+      [user.user_id]
+    );
+
+    const assignedRoles = assignedRolesResult.rows[0].roles || [];
+
+    await recordAudit(client, {
+      entityType: 'user',
+      entityId: user.user_id,
+      action: 'user.create',
+      beforeState: null,
+      afterState: {
+        user_id: user.user_id,
+        username: user.username,
+        full_name: user.full_name,
+        is_active: user.is_active,
+        roles: assignedRoles,
+      },
+      actorUserId: req.user.user_id,
+      actorUsername: req.user.username,
+      requestId: req.requestId,
+      sourceService: 'gateway',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(201).json({ item: { ...user, roles: assignedRoles } });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    const status = error.code === '23505' ? 409 : 500;
+    return res.status(status).json({ code: 'USER_CREATE_ERROR', message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/v1/admin/users/:userId/roles', requireAuth, requirePermission('roles.manage'), async (req, res) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'userId must be a positive integer' });
+  }
+
+  try {
+    const userResult = await pool.query(
+      'SELECT user_id, username, full_name, is_active FROM users WHERE user_id = $1',
+      [userId]
+    );
+    if (userResult.rowCount === 0) {
+      return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    }
+
+    const rolesResult = await pool.query(
+      `
+      SELECT r.role_code, r.role_name
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      ORDER BY r.role_code
+      `,
+      [userId]
+    );
+
+    return res.status(200).json({ user: userResult.rows[0], roles: rolesResult.rows });
+  } catch (error) {
+    return res.status(500).json({ code: 'USER_ROLES_QUERY_ERROR', message: error.message });
+  }
+});
+
+app.post('/api/v1/admin/users/:userId/roles', requireAuth, requirePermission('roles.manage'), async (req, res) => {
+  const userId = Number(req.params.userId);
+  const { role_code } = req.body;
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'userId must be a positive integer' });
+  }
+  if (!role_code || typeof role_code !== 'string') {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'role_code is required' });
+  }
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const userResult = await client.query(
+      'SELECT user_id, username FROM users WHERE user_id = $1',
+      [userId]
+    );
+    if (userResult.rowCount === 0) {
+      return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    }
+
+    const roleResult = await client.query('SELECT role_id, role_code FROM roles WHERE role_code = $1', [role_code]);
+    if (roleResult.rowCount === 0) {
+      return res.status(404).json({ code: 'ROLE_NOT_FOUND', message: 'Role not found' });
+    }
+
+    const beforeRolesResult = await client.query(
+      `
+      SELECT COALESCE(array_agg(r.role_code ORDER BY r.role_code), '{}') AS roles
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      `,
+      [userId]
+    );
+    const beforeRoles = beforeRolesResult.rows[0].roles || [];
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const insertResult = await client.query(
+      `
+      INSERT INTO user_roles (user_id, role_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, role_id) DO NOTHING
+      RETURNING user_id
+      `,
+      [userId, roleResult.rows[0].role_id]
+    );
+
+    if (insertResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({
+        code: 'ROLE_ALREADY_ASSIGNED',
+        message: `Role ${role_code} is already assigned to user ${userId}`,
+      });
+    }
+
+    const afterRolesResult = await client.query(
+      `
+      SELECT COALESCE(array_agg(r.role_code ORDER BY r.role_code), '{}') AS roles
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      `,
+      [userId]
+    );
+    const afterRoles = afterRolesResult.rows[0].roles || [];
+
+    await recordAudit(client, {
+      entityType: 'user',
+      entityId: userId,
+      action: 'user.role.assign',
+      beforeState: { roles: beforeRoles },
+      afterState: { roles: afterRoles },
+      actorUserId: req.user.user_id,
+      actorUsername: req.user.username,
+      requestId: req.requestId,
+      sourceService: 'gateway',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(200).json({
+      message: 'Role assigned',
+      user_id: userId,
+      role_code,
+      roles: afterRoles,
+    });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    return res.status(500).json({ code: 'ROLE_ASSIGN_ERROR', message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/v1/admin/users/:userId/roles/:roleCode', requireAuth, requirePermission('roles.manage'), async (req, res) => {
+  const userId = Number(req.params.userId);
+  const roleCode = req.params.roleCode;
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'userId must be a positive integer' });
+  }
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const userResult = await client.query(
+      'SELECT user_id, username FROM users WHERE user_id = $1',
+      [userId]
+    );
+    if (userResult.rowCount === 0) {
+      return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    }
+
+    const roleResult = await client.query('SELECT role_id, role_code FROM roles WHERE role_code = $1', [roleCode]);
+    if (roleResult.rowCount === 0) {
+      return res.status(404).json({ code: 'ROLE_NOT_FOUND', message: 'Role not found' });
+    }
+
+    const beforeRolesResult = await client.query(
+      `
+      SELECT COALESCE(array_agg(r.role_code ORDER BY r.role_code), '{}') AS roles
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      `,
+      [userId]
+    );
+    const beforeRoles = beforeRolesResult.rows[0].roles || [];
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const deleteResult = await client.query(
+      'DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2 RETURNING user_id',
+      [userId, roleResult.rows[0].role_id]
+    );
+
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(404).json({
+        code: 'ROLE_NOT_ASSIGNED',
+        message: `Role ${roleCode} is not assigned to user ${userId}`,
+      });
+    }
+
+    const afterRolesResult = await client.query(
+      `
+      SELECT COALESCE(array_agg(r.role_code ORDER BY r.role_code), '{}') AS roles
+      FROM user_roles ur
+      JOIN roles r ON r.role_id = ur.role_id
+      WHERE ur.user_id = $1
+      `,
+      [userId]
+    );
+    const afterRoles = afterRolesResult.rows[0].roles || [];
+
+    await recordAudit(client, {
+      entityType: 'user',
+      entityId: userId,
+      action: 'user.role.revoke',
+      beforeState: { roles: beforeRoles },
+      afterState: { roles: afterRoles },
+      actorUserId: req.user.user_id,
+      actorUsername: req.user.username,
+      requestId: req.requestId,
+      sourceService: 'gateway',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(200).json({
+      message: 'Role revoked',
+      user_id: userId,
+      role_code: roleCode,
+      roles: afterRoles,
+    });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    return res.status(500).json({ code: 'ROLE_REVOKE_ERROR', message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/v1/audit/logs', requireAuth, requirePermission('audit.read'), async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 500);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const {
+    entity_type,
+    entity_id,
+    actor_username,
+    request_id,
+    source_service,
+    from,
+    to,
+    format,
+  } = req.query;
+
+  const filters = [];
+  const values = [];
+  let idx = 1;
+
+  if (entity_type) {
+    filters.push(`entity_type = $${idx++}`);
+    values.push(entity_type);
+  }
+  if (entity_id) {
+    filters.push(`entity_id = $${idx++}`);
+    values.push(entity_id);
+  }
+  if (actor_username) {
+    filters.push(`actor_username = $${idx++}`);
+    values.push(actor_username);
+  }
+  if (request_id) {
+    filters.push(`request_id = $${idx++}`);
+    values.push(request_id);
+  }
+  if (source_service) {
+    filters.push(`source_service = $${idx++}`);
+    values.push(source_service);
+  }
+  if (from) {
+    filters.push(`created_at >= $${idx++}::timestamp`);
+    values.push(from);
+  }
+  if (to) {
+    filters.push(`created_at <= $${idx++}::timestamp`);
+    values.push(to);
+  }
+
+  const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+
+  try {
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM audit_logs ${whereClause}`,
+      values
+    );
+
+    const listResult = await pool.query(
+      `
+      SELECT
+        audit_id,
+        entity_type,
+        entity_id,
+        action,
+        before_state,
+        after_state,
+        actor_user_id,
+        actor_username,
+        request_id,
+        source_service,
+        created_at
+      FROM audit_logs
+      ${whereClause}
+      ORDER BY created_at DESC, audit_id DESC
+      LIMIT $${idx++} OFFSET $${idx++}
+      `,
+      [...values, limit, offset]
+    );
+
+    const rows = listResult.rows;
+
+    if (String(format || '').toLowerCase() === 'csv') {
+      const toCsvValue = (value) => {
+        if (value === null || value === undefined) return '';
+        const asText = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        return `"${asText.replace(/"/g, '""')}"`;
+      };
+
+      const header = [
+        'audit_id',
+        'entity_type',
+        'entity_id',
+        'action',
+        'actor_user_id',
+        'actor_username',
+        'request_id',
+        'source_service',
+        'created_at',
+        'before_state',
+        'after_state',
+      ];
+
+      const lines = [header.join(',')];
+      for (const row of rows) {
+        lines.push(
+          [
+            row.audit_id,
+            row.entity_type,
+            row.entity_id,
+            row.action,
+            row.actor_user_id,
+            row.actor_username,
+            row.request_id,
+            row.source_service,
+            row.created_at,
+            row.before_state,
+            row.after_state,
+          ]
+            .map(toCsvValue)
+            .join(',')
+        );
+      }
+
+      res.setHeader('content-type', 'text/csv; charset=utf-8');
+      res.setHeader('content-disposition', 'attachment; filename="audit_logs.csv"');
+      return res.status(200).send(lines.join('\n'));
+    }
+
+    return res.status(200).json({
+      items: rows,
+      pagination: { limit, offset, total: countResult.rows[0].total },
+      filters: {
+        entity_type: entity_type || null,
+        entity_id: entity_id || null,
+        actor_username: actor_username || null,
+        request_id: request_id || null,
+        source_service: source_service || null,
+        from: from || null,
+        to: to || null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ code: 'AUDIT_QUERY_ERROR', message: error.message });
+  }
+});
+
 app.use('/api/v1', requireAuth);
 
-app.use('/api/v1/sales', (req, res) => forwardRequest(req, res, SERVICE_URLS.sales, '/api/v1/sales'));
-app.use('/api/v1/catalog', (req, res) => forwardRequest(req, res, SERVICE_URLS.catalog, '/api/v1/catalog'));
-app.use('/api/v1/customers', (req, res) =>
-  forwardRequest(req, res, SERVICE_URLS.customers, '/api/v1/customers', '/customers')
-);
-app.use('/api/v1/suppliers', (req, res) =>
-  forwardRequest(req, res, SERVICE_URLS.suppliers, '/api/v1/suppliers', '/suppliers')
-);
+app.use('/api/v1/sales', (req, res, next) => {
+  let permission = 'orders.read';
+  if (req.method === 'POST') {
+    permission = req.path.endsWith('/transition') ? 'orders.transition' : 'orders.create';
+  }
+  if (req.method === 'PATCH') permission = 'orders.update';
+  if (req.method === 'DELETE') permission = 'orders.delete';
+  return requirePermission(permission)(req, res, next);
+}, (req, res) => forwardRequest(req, res, SERVICE_URLS.sales, '/api/v1/sales'));
+
+app.use('/api/v1/catalog', (req, res, next) => {
+  let permission = 'products.read';
+  if (req.method === 'POST') permission = 'products.create';
+  if (req.method === 'PATCH') {
+    permission = req.path.endsWith('/stock') ? 'products.update_stock' : 'products.update';
+  }
+  if (req.method === 'DELETE') permission = 'products.delete';
+  return requirePermission(permission)(req, res, next);
+}, (req, res) => forwardRequest(req, res, SERVICE_URLS.catalog, '/api/v1/catalog'));
+
+app.use('/api/v1/customers', (req, res, next) => {
+  let permission = 'customers.read';
+  if (req.method === 'POST') permission = 'customers.create';
+  if (req.method === 'PATCH') permission = 'customers.update';
+  if (req.method === 'DELETE') permission = 'customers.delete';
+  return requirePermission(permission)(req, res, next);
+}, (req, res) => forwardRequest(req, res, SERVICE_URLS.customers, '/api/v1/customers', '/customers'));
+
+app.use('/api/v1/suppliers', (req, res, next) => {
+  let permission = 'suppliers.read';
+  if (req.method === 'POST') permission = 'suppliers.create';
+  if (req.method === 'PATCH') permission = 'suppliers.update';
+  if (req.method === 'DELETE') permission = 'suppliers.delete';
+  return requirePermission(permission)(req, res, next);
+}, (req, res) => forwardRequest(req, res, SERVICE_URLS.suppliers, '/api/v1/suppliers', '/suppliers'));
 
 app.use((_req, res) => {
   res.status(404).json({ code: 'NOT_FOUND', message: 'Route not found' });

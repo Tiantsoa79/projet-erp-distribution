@@ -1,10 +1,24 @@
 const express = require('express');
 const { pool } = require('../../database/connection');
+const { buildAuditActor, recordAudit } = require('../../utils/audit');
 
 const app = express();
 app.use(express.json());
 
 const CUSTOMERS_SERVICE_PORT = Number(process.env.CUSTOMERS_SERVICE_PORT || 4003);
+
+async function generateNextCustomerId(client) {
+  const result = await client.query(
+    `
+    SELECT COALESCE(MAX((regexp_match(customer_id, '^[A-Z]{2}-(\\d+)$'))[1]::int), 0) AS max_id
+    FROM customers
+    WHERE customer_id ~ '^[A-Z]{2}-\\d+$'
+    `
+  );
+
+  const nextId = Number(result.rows[0].max_id) + 1;
+  return `CU-${String(nextId).padStart(5, '0')}`;
+}
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number(value);
@@ -59,23 +73,51 @@ app.get('/customers/:customerId', async (req, res, next) => {
 app.post('/customers', async (req, res, next) => {
   const { customer_id, customer_name, segment, city, state, region, email } = req.body;
 
-  if (!customer_id || !customer_name) {
-    return res.status(400).json({ message: 'customer_id et customer_name sont requis.' });
+  if (!customer_name) {
+    return res.status(400).json({ message: 'customer_name est requis.' });
   }
 
+  const client = await pool.connect();
+  let inTransaction = false;
   try {
-    const result = await pool.query(
+    const actor = buildAuditActor(req.headers);
+    const finalCustomerId = customer_id || await generateNextCustomerId(client);
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const result = await client.query(
       `
       INSERT INTO customers (customer_id, customer_name, segment, city, state, region, email)
       VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING customer_id, customer_name, segment, city, state, region, email, created_at
       `,
-      [customer_id, customer_name, segment || null, city || null, state || null, region || null, email || null]
+      [finalCustomerId, customer_name, segment || null, city || null, state || null, region || null, email || null]
     );
+
+    await recordAudit(client, {
+      entityType: 'customer',
+      entityId: finalCustomerId,
+      action: 'customer.create',
+      beforeState: null,
+      afterState: result.rows[0],
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'customers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
 
     res.status(201).json({ item: result.rows[0] });
   } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -83,8 +125,25 @@ app.patch('/customers/:customerId', async (req, res, next) => {
   const { customerId } = req.params;
   const { customer_name, segment, city, state, region, email } = req.body;
 
+  const client = await pool.connect();
+  let inTransaction = false;
   try {
-    const result = await pool.query(
+    const actor = buildAuditActor(req.headers);
+    const beforeResult = await client.query(
+      `
+      SELECT customer_id, customer_name, segment, city, state, region, email
+      FROM customers
+      WHERE customer_id = $1
+      `,
+      [customerId]
+    );
+
+    if (beforeResult.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const result = await client.query(
       `
       UPDATE customers
       SET customer_name = COALESCE($2, customer_name),
@@ -100,15 +159,83 @@ app.patch('/customers/:customerId', async (req, res, next) => {
       [customerId, customer_name, segment, city, state, region, email]
     );
 
-    if (result.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
+    await recordAudit(client, {
+      entityType: 'customer',
+      entityId: customerId,
+      action: 'customer.update',
+      beforeState: beforeResult.rows[0],
+      afterState: result.rows[0],
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'customers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
     res.status(200).json({ item: result.rows[0] });
   } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
     next(error);
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/customers/:customerId', async (req, res, next) => {
+  const { customerId } = req.params;
+
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const actor = buildAuditActor(req.headers);
+    const beforeResult = await client.query(
+      `
+      SELECT customer_id, customer_name, segment, city, state, region, email
+      FROM customers
+      WHERE customer_id = $1
+      `,
+      [customerId]
+    );
+
+    if (beforeResult.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    await client.query('DELETE FROM customers WHERE customer_id = $1', [customerId]);
+
+    await recordAudit(client, {
+      entityType: 'customer',
+      entityId: customerId,
+      action: 'customer.delete',
+      beforeState: beforeResult.rows[0],
+      afterState: null,
+      actorUserId: actor.actorUserId,
+      actorUsername: actor.actorUsername,
+      requestId: actor.requestId,
+      sourceService: 'customers',
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    return res.status(200).json({ message: 'Customer deleted', customer_id: customerId });
+  } catch (error) {
+    if (inTransaction) {
+      await client.query('ROLLBACK');
+    }
+    return next(error);
+  } finally {
+    client.release();
   }
 });
 
 app.use((error, _req, res, _next) => {
-  const status = error.code === '23505' ? 409 : 500;
+  const status = error.code === '23505' || error.code === '23503' ? 409 : 500;
   res.status(status).json({ message: 'Customers service error', detail: error.message });
 });
 

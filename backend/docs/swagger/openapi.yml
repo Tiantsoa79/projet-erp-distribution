@@ -12,6 +12,8 @@ servers:
 
 tags:
   - name: Gateway Auth
+  - name: Admin RBAC
+  - name: Audit
   - name: Sales
   - name: Catalog
   - name: Suppliers
@@ -39,7 +41,7 @@ paths:
 
   /api/v1/auth/login:
     post:
-      summary: Login admin (auth simple locale)
+      summary: Login utilisateur (auth RBAC)
       tags: [Gateway Auth]
       requestBody:
         required: true
@@ -55,9 +57,11 @@ paths:
               required: [username, password]
       responses:
         '200':
-          description: JWT genere + cookie session HTTP-only
+          description: JWT genere + cookie session HTTP-only + roles/permissions
         '401':
           description: Identifiants invalides
+        '403':
+          description: Compte inactif
 
   /api/v1/auth/logout:
     post:
@@ -76,9 +80,230 @@ paths:
         - cookieAuth: []
       responses:
         '200':
-          description: Payload token
+          description: Payload token (user, roles, permissions)
         '401':
           description: Non authentifie
+
+  /api/v1/authz/matrix:
+    get:
+      summary: Permissions RBAC requises par route (documentation runtime)
+      tags: [Gateway Auth]
+      responses:
+        '200':
+          description: Matrice des permissions exposee par le gateway
+
+  /api/v1/admin/roles:
+    get:
+      summary: Lister les roles avec permissions
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Liste des roles
+        '403':
+          description: Permission roles.manage requise
+
+  /api/v1/admin/users:
+    get:
+      summary: Lister les utilisateurs et leurs roles
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Liste des utilisateurs
+        '403':
+          description: Permission users.manage requise
+    post:
+      summary: Creer un utilisateur et assigner des roles initiaux
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                full_name:
+                  type: string
+                role_codes:
+                  type: array
+                  items:
+                    type: string
+              required: [username, password]
+      responses:
+        '201':
+          description: Utilisateur cree
+        '403':
+          description: Permission users.manage requise
+        '409':
+          description: Username deja existant
+
+  /api/v1/admin/users/{userId}/roles:
+    get:
+      summary: Lister les roles d'un utilisateur
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Roles de l'utilisateur
+        '403':
+          description: Permission roles.manage requise
+        '404':
+          description: Utilisateur non trouve
+    post:
+      summary: Assigner un role a un utilisateur
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_code:
+                  type: string
+              required: [role_code]
+      responses:
+        '200':
+          description: Role assigne
+        '403':
+          description: Permission roles.manage requise
+        '404':
+          description: Utilisateur ou role non trouve
+        '409':
+          description: Role deja assigne
+
+  /api/v1/admin/users/{userId}/roles/{roleCode}:
+    delete:
+      summary: Retirer un role d'un utilisateur
+      tags: [Admin RBAC]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: roleCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role retire
+        '403':
+          description: Permission roles.manage requise
+        '404':
+          description: Utilisateur/role non trouve ou role non assigne
+
+  /api/v1/audit/logs:
+    get:
+      summary: Consulter les traces d'audit (JSON ou CSV)
+      tags: [Audit]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - name: entity_id
+          in: query
+          schema:
+            type: string
+        - name: actor_username
+          in: query
+          schema:
+            type: string
+        - name: request_id
+          in: query
+          schema:
+            type: string
+        - name: source_service
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Date/heure debut (timestamp)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Date/heure fin (timestamp)
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv]
+      responses:
+        '200':
+          description: Liste d'audit (ou export CSV si format=csv)
+        '403':
+          description: Permission audit.read requise
 
   /api/v1/sales/orders:
     get:
@@ -101,15 +326,67 @@ paths:
       responses:
         '200':
           description: Liste des commandes
+        '403':
+          description: Permission orders.read requise
     post:
       summary: Creer une commande (via gateway)
       tags: [Sales]
       security:
         - bearerAuth: []
         - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_id:
+                  type: string
+                  description: Optionnel (auto-genere si absent, ex OR-2026-000001)
+                customer_id:
+                  type: string
+                customer_name:
+                  type: string
+                  description: Alternative a customer_id
+                order_date:
+                  type: string
+                  format: date
+                ship_date:
+                  type: string
+                  format: date
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      product_id:
+                        type: string
+                      product_name:
+                        type: string
+                        description: Alternative a product_id
+                      quantity:
+                        type: integer
+                      discount:
+                        type: number
+                      unit_price:
+                        type: number
+                      cost:
+                        type: number
+                      sales:
+                        type: number
+                      profit:
+                        type: number
+              required: [order_date, lines]
       responses:
         '201':
           description: Commande creee
+        '409':
+          description: Periode comptable cloturee
+        '422':
+          description: Validation metier echouee (dates/lignes/montants)
+        '403':
+          description: Permission orders.create requise
 
   /api/v1/sales/orders/{orderId}:
     get:
@@ -129,6 +406,84 @@ paths:
           description: Detail commande
         '404':
           description: Non trouve
+        '403':
+          description: Permission orders.read requise
+    patch:
+      summary: Mettre a jour une commande (via gateway)
+      tags: [Sales]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Commande mise a jour
+        '409':
+          description: Periode comptable cloturee
+        '422':
+          description: Validation metier echouee
+        '403':
+          description: Permission orders.update requise
+    delete:
+      summary: Supprimer une commande (via gateway)
+      tags: [Sales]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Commande supprimee
+        '409':
+          description: Periode comptable cloturee
+        '403':
+          description: Permission orders.delete requise
+
+  /api/v1/sales/orders/{orderId}/transition:
+    post:
+      summary: Transitionner le statut d'une commande (workflow controle)
+      tags: [Sales]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to_status:
+                  type: string
+                  enum: [Draft, Submitted, Approved, Shipped, Closed]
+              required: [to_status]
+      responses:
+        '200':
+          description: Transition appliquee
+        '404':
+          description: Commande non trouvee
+        '409':
+          description: Periode comptable cloturee
+        '422':
+          description: Transition invalide ou statut invalide
+        '403':
+          description: Permission orders.transition requise
 
   /api/v1/catalog/products:
     get:
@@ -155,6 +510,37 @@ paths:
       responses:
         '200':
           description: Liste des produits
+        '403':
+          description: Permission products.read requise
+    post:
+      summary: Creer un produit (via gateway)
+      tags: [Catalog]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_id:
+                  type: string
+                  description: Optionnel (auto-genere si absent, ex PRD-AU-00001000)
+                product_name:
+                  type: string
+                supplier_id:
+                  type: string
+                supplier_name:
+                  type: string
+                  description: Alternative a supplier_id
+              required: [product_name]
+      responses:
+        '201':
+          description: Produit cree
+        '403':
+          description: Permission products.create requise
 
   /api/v1/catalog/products/{productId}:
     get:
@@ -174,6 +560,42 @@ paths:
           description: Detail produit
         '404':
           description: Non trouve
+        '403':
+          description: Permission products.read requise
+    patch:
+      summary: Mettre a jour un produit (via gateway)
+      tags: [Catalog]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Produit mis a jour
+        '403':
+          description: Permission products.update requise
+    delete:
+      summary: Supprimer un produit (via gateway)
+      tags: [Catalog]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Produit supprime
+        '403':
+          description: Permission products.delete requise
 
   /api/v1/catalog/products/{productId}/stock:
     patch:
@@ -191,6 +613,8 @@ paths:
       responses:
         '200':
           description: Stock mis a jour
+        '403':
+          description: Permission products.update_stock requise
 
   /api/v1/suppliers:
     get:
@@ -202,6 +626,36 @@ paths:
       responses:
         '200':
           description: Liste fournisseurs
+        '403':
+          description: Permission suppliers.read requise
+    post:
+      summary: Creer un fournisseur (via gateway)
+      tags: [Suppliers]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                supplier_id:
+                  type: string
+                  description: Optionnel (auto-genere si absent, ex SUP-051)
+                supplier_name:
+                  type: string
+                country:
+                  type: string
+                contact_email:
+                  type: string
+              required: [supplier_name]
+      responses:
+        '201':
+          description: Fournisseur cree
+        '403':
+          description: Permission suppliers.create requise
 
   /api/v1/suppliers/{supplierId}:
     get:
@@ -221,6 +675,8 @@ paths:
           description: Detail fournisseur
         '404':
           description: Non trouve
+        '403':
+          description: Permission suppliers.read requise
     patch:
       summary: Mettre a jour un fournisseur (via gateway)
       tags: [Suppliers]
@@ -236,6 +692,25 @@ paths:
       responses:
         '200':
           description: Fournisseur mis a jour
+        '403':
+          description: Permission suppliers.update requise
+    delete:
+      summary: Supprimer un fournisseur (via gateway)
+      tags: [Suppliers]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: supplierId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fournisseur supprime
+        '403':
+          description: Permission suppliers.delete requise
 
   /api/v1/customers:
     get:
@@ -247,15 +722,40 @@ paths:
       responses:
         '200':
           description: Liste clients
+        '403':
+          description: Permission customers.read requise
     post:
       summary: Creer un client (via gateway)
       tags: [Customers]
       security:
         - bearerAuth: []
         - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer_id:
+                  type: string
+                  description: Optionnel (auto-genere si absent, ex CU-01234)
+                customer_name:
+                  type: string
+                segment:
+                  type: string
+                city:
+                  type: string
+                region:
+                  type: string
+                email:
+                  type: string
+              required: [customer_name]
       responses:
         '201':
           description: Client cree
+        '403':
+          description: Permission customers.create requise
 
   /api/v1/customers/{customerId}:
     get:
@@ -275,6 +775,8 @@ paths:
           description: Detail client
         '404':
           description: Non trouve
+        '403':
+          description: Permission customers.read requise
     patch:
       summary: Mettre a jour un client (via gateway)
       tags: [Customers]
@@ -290,3 +792,22 @@ paths:
       responses:
         '200':
           description: Client mis a jour
+        '403':
+          description: Permission customers.update requise
+    delete:
+      summary: Supprimer un client (via gateway)
+      tags: [Customers]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Client supprime
+        '403':
+          description: Permission customers.delete requise
