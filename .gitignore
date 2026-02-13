@@ -1,0 +1,17 @@
+# Dependencies
+**/node_modules/
+
+# Env files (keep examples)
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# Logs
+**/*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,51 @@
+Supplier_ID,Supplier_Name,Country,Contact_Email,Contact_Phone,Rating,Lead_Time_Days,Payment_Terms,Active
+SUP-029,Global Tech Supplies,Taiwan,contact@globaltechsupplies.com,+886-947-5144,4.4,7,Net 60,True
+SUP-016,Office Depot International,Germany,contact@officedepotinternational.com,+49-300-3961,3.7,41,Net 30,True
+SUP-041,Furniture World Corp,Italy,contact@furnitureworldcorp.com,+1-208-1177,3.8,15,2/10 Net 30,True
+SUP-018,Tech Innovations Ltd,USA,contact@techinnovationsltd.com,+1-718-8972,4.1,41,2/10 Net 30,True
+SUP-012,Premium Office Solutions,Italy,contact@premiumofficesolutions.com,+886-206-2333,3.8,11,2/10 Net 30,True
+SUP-044,Elite Furniture Group,Taiwan,contact@elitefurnituregroup.com,+1-746-4882,4.7,42,Net 45,True
+SUP-003,Digital Products Inc,France,contact@digitalproductsinc.com,+82-348-8462,4.0,42,2/10 Net 30,True
+SUP-022,Smart Office Supply,Germany,contact@smartofficesupply.com,+1-275-1085,4.0,8,Net 30,True
+SUP-047,Modern Furniture Co,Canada,contact@modernfurnitureco.com,+86-770-9390,4.1,14,Net 60,True
+SUP-010,Tech Global Distributors,UK,contact@techglobaldistributors.com,+82-396-3695,5.0,12,Net 45,True
+SUP-025,Professional Office Supplies,Taiwan,contact@professionalofficesupplies.com,+1-805-9300,3.7,13,Net 45,False
+SUP-028,Quality Furniture Ltd,China,contact@qualityfurnitureltd.com,+33-691-1318,3.8,26,Net 45,True
+SUP-014,Advanced Tech Systems,Japan,contact@advancedtechsystems.com,+82-421-6120,3.5,41,Net 60,True
+SUP-011,Office Essentials Corp,USA,contact@officeessentialscorp.com,+81-977-6190,3.5,27,Net 60,True
+SUP-004,Contemporary Furniture Inc,Italy,contact@contemporaryfurnitureinc.com,+81-893-5062,3.8,12,Net 45,True
+SUP-027,Technology Partners,Germany,contact@technologypartners.com,+81-619-2554,4.0,41,Net 45,False
+SUP-045,Business Solutions Group,USA,contact@businesssolutionsgroup.com,+1-318-7658,4.5,45,Net 30,True
+SUP-038,Classic Furniture Ltd,Italy,contact@classicfurnitureltd.com,+82-946-2287,4.7,35,Net 45,True
+SUP-006,Innovation Tech Supply,Japan,contact@innovationtechsupply.com,+886-589-1147,3.6,23,2/10 Net 30,True
+SUP-050,Corporate Office Supplies,UK,contact@corporateofficesupplies.com,+82-690-4926,3.9,36,2/10 Net 30,True
+SUP-034,Designer Furniture Co,France,contact@designerfurnitureco.com,+1-974-9271,5.0,15,Net 60,True
+SUP-033,Premier Tech Products,Germany,contact@premiertechproducts.com,+86-648-4152,4.7,43,Net 30,True
+SUP-026,Executive Office Solutions,China,contact@executiveofficesolutions.com,+33-438-7552,4.7,21,Net 30,True
+SUP-030,Luxury Furniture Group,Italy,contact@luxuryfurnituregroup.com,+1-512-4993,3.9,31,2/10 Net 30,True
+SUP-008,Digital Innovation Inc,Japan,contact@digitalinnovationinc.com,+49-834-6848,3.8,39,Net 60,True
+SUP-024,Professional Supplies Ltd,UK,contact@professionalsuppliesltd.com,+82-982-3227,4.3,18,Net 60,False
+SUP-032,Artisan Furniture Co,Taiwan,contact@artisanfurnitureco.com,+886-539-7520,4.3,29,Net 60,True
+SUP-019,Tech Solutions International,China,contact@techsolutionsinternational.com,+82-775-2973,3.8,15,Net 60,True
+SUP-005,Office Pro Distributors,Italy,contact@officeprodistributors.com,+49-438-1386,4.0,31,Net 45,True
+SUP-031,Elite Design Furniture,USA,contact@elitedesignfurniture.com,+1-460-4575,4.3,45,Net 30,True
+SUP-042,Global Innovation Tech,Canada,contact@globalinnovationtech.com,+33-841-4673,4.3,37,Net 30,True
+SUP-048,Business Office Supply,South Korea,contact@businessofficesupply.com,+33-681-9187,4.9,17,2/10 Net 30,False
+SUP-015,Premium Furniture Group,Germany,contact@premiumfurnituregroup.com,+886-783-9439,4.6,11,Net 30,True
+SUP-049,Advanced Office Solutions,USA,contact@advancedofficesolutions.com,+49-895-7185,3.6,38,Net 45,False
+SUP-040,Smart Tech Distributors,USA,contact@smarttechdistributors.com,+49-658-2973,4.6,25,Net 30,False
+SUP-036,Modern Office Design,Japan,contact@modernofficedesign.com,+33-520-8402,3.6,16,2/10 Net 30,True
+SUP-046,Tech Excellence Corp,Italy,contact@techexcellencecorp.com,+49-924-7011,4.2,27,Net 30,True
+SUP-017,Professional Furniture Ltd,Canada,contact@professionalfurnitureltd.com,+1-795-1595,4.7,37,Net 30,True
+SUP-037,Quality Office Supplies,Italy,contact@qualityofficesupplies.com,+39-178-5424,4.7,23,Net 30,True
+SUP-023,Innovation Furniture Co,Taiwan,contact@innovationfurnitureco.com,+39-768-6437,5.0,29,Net 45,False
+SUP-039,Digital Office Solutions,Japan,contact@digitalofficesolutions.com,+886-728-4123,5.0,18,Net 45,True
+SUP-035,Premier Design Group,France,contact@premierdesigngroup.com,+1-344-8533,4.1,13,Net 30,True
+SUP-009,Executive Tech Supply,France,contact@executivetechsupply.com,+49-865-1629,4.1,39,Net 30,False
+SUP-020,Corporate Furniture Ltd,UK,contact@corporatefurnitureltd.com,+49-839-5842,3.9,23,Net 45,True
+SUP-013,Designer Office Solutions,Italy,contact@designerofficesolutions.com,+886-555-8907,4.6,44,Net 45,True
+SUP-001,Tech Premier International,Canada,contact@techpremierinternational.com,+49-981-7177,4.3,24,Net 30,True
+SUP-007,Business Furniture Corp,Canada,contact@businessfurniturecorp.com,+49-881-8278,4.9,42,Net 45,True
+SUP-021,Professional Design Co,Taiwan,contact@professionaldesignco.com,+44-808-6697,4.3,27,Net 30,True
+SUP-002,Global Office Innovations,UK,contact@globalofficeinnovations.com,+33-171-4776,4.2,10,Net 60,True
+SUP-043,Elite Tech Distributors,UK,contact@elitetechdistributors.com,+86-700-4038,3.9,41,Net 30,True
