@@ -1,0 +1,1 @@
+run_id,started_at,ended_at,status,extract_rows,loaded_dim_rows,loaded_fact_rows,error_message

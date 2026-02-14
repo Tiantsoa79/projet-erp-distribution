@@ -1,14 +1,15 @@
+const path = require('path');
 const { spawn } = require('child_process');
 
 const services = [
-  { name: 'gateway', script: 'gateway:start' },
-  { name: 'sales', script: 'sales:start' },
-  { name: 'catalog', script: 'catalog:start' },
-  { name: 'suppliers', script: 'suppliers:start' },
-  { name: 'customers', script: 'customers:start' },
+  { name: 'gateway', entry: 'services/gateway/server.js' },
+  { name: 'sales', entry: 'services/sales/server.js' },
+  { name: 'catalog', entry: 'services/catalog/server.js' },
+  { name: 'suppliers', entry: 'services/suppliers/server.js' },
+  { name: 'customers', entry: 'services/customers/server.js' },
 ];
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const backendRoot = path.resolve(__dirname, '..');
 const children = [];
 let shuttingDown = false;
 
@@ -22,17 +23,26 @@ function stopAll(exitCode = 0) {
 
   for (const child of children) {
     if (!child.killed) {
-      child.kill('SIGINT');
+      child.kill('SIGTERM');
     }
   }
 
-  setTimeout(() => process.exit(exitCode), 400);
+  setTimeout(() => process.exit(exitCode), 1000);
 }
 
 for (const service of services) {
-  const child = spawn(npmCommand, ['run', service.script], {
+  const child = spawn(process.execPath, [service.entry], {
+    cwd: backendRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false,
+    windowsHide: true,
+  });
+
+  child.on('error', (error) => {
+    log(service.name, `failed to start: ${error.message}\n`);
+    if (!shuttingDown) {
+      stopAll(1);
+    }
   });
 
   child.stdout.on('data', (data) => log(service.name, data.toString()));
