@@ -8,6 +8,9 @@ const { recordAudit } = require('../../utils/audit');
 
 require('dotenv').config();
 
+// In-memory token blacklist for development (fallback)
+const tokenBlacklist = new Set();
+
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
@@ -39,6 +42,46 @@ const SERVICE_URLS = {
   suppliers: process.env.SUPPLIERS_SERVICE_URL || 'http://localhost:4004',
 };
 
+// Token blacklist functions
+async function addToBlacklist(token) {
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || !decoded.jti) return false;
+
+    await pool.query(
+      'INSERT INTO token_blacklist (token_jti, user_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (token_jti) DO NOTHING',
+      [decoded.jti, decoded.user_id, new Date(decoded.exp * 1000)]
+    );
+    
+    // Cleanup expired tokens periodically
+    await pool.query('SELECT cleanup_expired_blacklisted_tokens()');
+    return true;
+  } catch (error) {
+    console.warn('Failed to add token to blacklist (using fallback):', error.message);
+    // Fallback to in-memory blacklist
+    tokenBlacklist.add(token);
+    return false;
+  }
+}
+
+async function isTokenBlacklisted(token) {
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || !decoded.jti) return false;
+
+    const result = await pool.query(
+      'SELECT 1 FROM token_blacklist WHERE token_jti = $1 AND expires_at > CURRENT_TIMESTAMP',
+      [decoded.jti]
+    );
+    
+    return result.rowCount > 0;
+  } catch (error) {
+    console.warn('Failed to check blacklist (using fallback):', error.message);
+    // Fallback to in-memory blacklist
+    return tokenBlacklist.has(token);
+  }
+}
+
 function readToken(req) {
   const fromCookie = req.cookies[SESSION_COOKIE_NAME];
   if (fromCookie) return fromCookie;
@@ -48,7 +91,15 @@ function readToken(req) {
   return null;
 }
 
-function requireAuth(req, res, next) {
+// Token versioning approach (plus professionnel)
+async function logoutByTokenVersion(userId) {
+  await pool.query(
+    'UPDATE users SET token_version = token_version + 1 WHERE user_id = $1',
+    [userId]
+  );
+}
+
+async function requireAuth(req, res, next) {
   const token = readToken(req);
   if (!token) {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
@@ -56,6 +107,21 @@ function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+    
+    // Vérifier la version du token
+    const userResult = await pool.query(
+      'SELECT token_version FROM users WHERE user_id = $1',
+      [payload.user_id]
+    );
+    
+    if (userResult.rowCount === 0) {
+      return res.status(401).json({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    }
+    
+    const currentTokenVersion = userResult.rows[0].token_version || 0;
+    if (payload.token_version !== currentTokenVersion) {
+      return res.status(401).json({ code: 'TOKEN_REVOKED', message: 'Token has been revoked' });
+    }
     req.user = payload;
     return next();
   } catch (error) {
@@ -191,6 +257,14 @@ app.post('/api/v1/auth/login', async (req, res) => {
     const roles = accessResult.rows[0]?.roles || [];
     const permissions = accessResult.rows[0]?.permissions || [];
 
+    // Récupérer la version actuelle du token
+    const userVersionResult = await pool.query(
+      'SELECT token_version FROM users WHERE user_id = $1',
+      [user.user_id]
+    );
+    
+    const currentTokenVersion = userVersionResult.rows[0]?.token_version || 0;
+
     const token = jwt.sign(
       {
         user_id: user.user_id,
@@ -198,6 +272,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
         full_name: user.full_name,
         roles,
         permissions,
+        token_version: currentTokenVersion, // Inclure la version dans le token
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -227,9 +302,22 @@ app.post('/api/v1/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/v1/auth/logout', (_req, res) => {
-  res.clearCookie(SESSION_COOKIE_NAME);
-  return res.status(200).json({ message: 'Logout successful' });
+app.post('/api/v1/auth/logout', async (req, res) => {
+  try {
+    const token = readToken(req);
+    if (token) {
+      const payload = jwt.decode(token);
+      if (payload && payload.user_id) {
+        // Incrémenter la version du token pour invalider tous les tokens existants
+        await logoutByTokenVersion(payload.user_id);
+      }
+    }
+    res.clearCookie(SESSION_COOKIE_NAME);
+    return res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res.status(500).json({ code: 'LOGOUT_ERROR', message: 'Logout failed' });
+  }
 });
 
 app.get('/api/v1/auth/me', requireAuth, (req, res) => {
