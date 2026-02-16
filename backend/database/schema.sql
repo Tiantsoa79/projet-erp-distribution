@@ -166,6 +166,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   full_name TEXT,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  token_version INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -192,6 +193,8 @@ CREATE TABLE IF NOT EXISTS user_roles (
   created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, role_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_token_version ON users(user_id, token_version);
 
 CREATE TABLE IF NOT EXISTS role_permissions (
   role_id BIGINT NOT NULL REFERENCES roles(role_id) ON DELETE CASCADE,

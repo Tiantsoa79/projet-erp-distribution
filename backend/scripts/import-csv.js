@@ -607,6 +607,24 @@ async function seedAccountingPeriods(client) {
   }
 }
 
+async function applyMigrations(client) {
+  const migrationsDir = path.join(backendDir, 'database', 'migrations');
+  if (!fs.existsSync(migrationsDir)) {
+    return;
+  }
+
+  const migrationFiles = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
+
+  for (const file of migrationFiles) {
+    const filePath = path.join(migrationsDir, file);
+    const migrationSql = fs.readFileSync(filePath, 'utf8');
+    await client.query(migrationSql);
+    console.log(`Migration applied: ${file}`);
+  }
+}
+
 async function main() {
   await ensureDatabaseExists();
 
@@ -626,6 +644,7 @@ async function main() {
     await client.query('BEGIN');
     inTransaction = true;
     await client.query(schemaSql);
+    await applyMigrations(client);
     await seedRbac(client);
     await seedAccountingPeriods(client);
     await client.query('COMMIT');
