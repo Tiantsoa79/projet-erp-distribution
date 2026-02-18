@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import psycopg2
+from dotenv import load_dotenv
 
 
 def get_olap_conn():
@@ -233,4 +234,5 @@ def main():
 
 
 if __name__ == "__main__":
+    load_dotenv("olap/configs/.env")
     main()

@@ -3,11 +3,16 @@ import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
 
 
 def run_step(step: str, script_path: str):
     print(f"[ETL] Running step: {step} -> {script_path}")
-    result = subprocess.run(["python", script_path], capture_output=True, text=True)
+    
+    # Use venv Python and pass environment variables
+    venv_python = "olap/venv/Scripts/python.exe"
+    env = os.environ.copy()
+    result = subprocess.run([venv_python, script_path], capture_output=True, text=True, env=env)
     if result.returncode != 0:
         raise RuntimeError(f"Step {step} failed: {result.stderr.strip()}")
     print(result.stdout.strip())
@@ -32,6 +37,7 @@ def append_log(run_id: str, started_at: datetime, ended_at: datetime, status: st
 
 
 def main():
+    load_dotenv("olap/configs/.env")
     run_id = os.getenv("ETL_RUN_ID") or datetime.utcnow().strftime("run_%Y%m%d_%H%M%S")
     os.environ["ETL_RUN_ID"] = run_id
 

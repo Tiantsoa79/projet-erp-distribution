@@ -51,6 +51,87 @@ Runbook operationnel complet (Windows):
 
 - `docs/runbook-windows.md`
 
+## Installation et Configuration
+
+### Prérequis
+- Python 3.14+
+- PostgreSQL 16+
+- Node.js (pour le backend)
+
+### Installation pour un nouveau développeur
+
+1. **Cloner le projet**
+   ```bash
+   git clone <url>
+   cd projet-erp-distribution
+   ```
+
+2. **Configurer le Backend** (dans `backend/`)
+   ```bash
+   cd backend
+   copy .env.example .env
+   # Éditer .env avec vos configurations
+   npm install
+   npm start
+   ```
+
+3. **Configurer OLAP**
+   ```bash
+   cd ..  # Retour à la racine
+   
+   # Créer l'environnement virtuel Python
+   python -m venv olap/venv
+   
+   # Activer le venv (OBLIGATOIRE pour chaque session)
+   # Windows:
+   olap/venv/Scripts/activate
+   # Linux/Mac:
+   source olap/venv/bin/activate
+   
+   # Installer les dépendances
+   pip install -r olap/requirements.txt
+   
+   # Configurer l'environnement
+   copy olap/configs/.env.example olap/configs/.env
+   # Éditer .env avec vos configurations (DB, API, etc.)
+   ```
+
+4. **Créer les schémas SQL**
+   ```bash
+   # PostgreSQL doit être lancé avec l'utilisateur postgres
+   psql -U postgres -d erp_distribution -f olap/sql/staging/001_create_staging.sql
+   psql -U postgres -d erp_distribution -f olap/sql/dwh/010_create_dimensions.sql
+   psql -U postgres -d erp_distribution -f olap/sql/dwh/020_create_facts.sql
+   psql -U postgres -d erp_distribution -f olap/sql/dwh/030_indexes_constraints.sql
+   ```
+
+## Execution
+
+### Lancement complet
+
+1. **Démarrer PostgreSQL**
+2. **Démarrer le Backend ERP** (dans un terminal)
+   ```bash
+   cd backend
+   npm start
+   ```
+
+3. **Lancer le pipeline OLAP** (dans un autre terminal)
+   ```bash
+   # À CHAQUE SESSION : activer le venv
+   olap/venv/Scripts/activate
+   
+   # Lancer le pipeline
+   python olap/etl/orchestration/run_pipeline.py
+   ```
+
+### Points importants
+
+- **Le venv doit être activé à chaque session** pour OLAP
+- Le backend doit être lancé **avant** le pipeline OLAP
+- Les fichiers `.env` ne sont pas versionnés (configurations locales)
+- PostgreSQL doit utiliser l'utilisateur `postgres` avec mot de passe `mdp` (par défaut)
+
 ## Execution rapide (a completer selon environnement)
 
 1. Creer les objets SQL dans cet ordre:
@@ -70,3 +151,39 @@ python olap/etl/orchestration/run_pipeline.py
    - `reports/etl_run_log.csv`
    - `reports/data_quality_report.md`
    - tests sous `olap/tests/`
+
+## Résultats attendus
+
+Après exécution réussie, le pipeline traite:
+- **Extraction**: 793 clients, 50 fournisseurs, 1861 produits, 4922 commandes, 9800 lignes de commande, 24610 historiques de statut
+- **Normalisation**: Nettoyage et standardisation des données
+- **Déduplication**: 0 doublons clients, 1 doublon produit détecté
+- **Chargement**: Dimensions et faits dans le Data Warehouse
+
+## Dépannage
+
+### Erreurs communes
+
+1. **ModuleNotFoundError: No module named 'dotenv'**
+   ```bash
+   # Solution: activer le venv
+   olap/venv/Scripts/activate
+   ```
+
+2. **ERREUR: le schéma « staging_raw » n'existe pas**
+   ```bash
+   # Solution: créer les schémas SQL
+   psql -U postgres -d erp_distribution -f olap/sql/staging/001_create_staging.sql
+   ```
+
+3. **ERREUR: authentication par mot de passe échouée**
+   ```bash
+   # Solution: vérifier le mot de passe PostgreSQL dans .env
+   # Par défaut: mdp
+   ```
+
+4. **ETL_API_USERNAME and ETL_API_PASSWORD are required**
+   ```bash
+   # Solution: configurer olap/configs/.env
+   # Utiliser les mêmes identifiants que le backend
+   ```

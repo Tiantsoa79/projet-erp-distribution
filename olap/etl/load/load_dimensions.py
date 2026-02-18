@@ -1,6 +1,7 @@
 import os
 
 import psycopg2
+from dotenv import load_dotenv
 
 
 def get_conn():
@@ -36,6 +37,10 @@ def main():
                     SELECT order_date::date AS d FROM staging_clean.orders_clean WHERE order_date IS NOT NULL
                     UNION
                     SELECT ship_date::date AS d FROM staging_clean.orders_clean WHERE ship_date IS NOT NULL
+                    UNION
+                    SELECT status_date::date AS d FROM staging_clean.order_status_history_clean WHERE status_date IS NOT NULL
+                    UNION
+                    SELECT CURRENT_DATE AS d  -- Add current date for snapshot dates
                 ) src
                 ON CONFLICT (date_key) DO NOTHING;
                 """
@@ -65,4 +70,5 @@ def main():
 
 
 if __name__ == "__main__":
+    load_dotenv("olap/configs/.env")
     main()
