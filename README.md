@@ -1,5 +1,29 @@
 # Projet ERP Distribution
 
+**Projet d'examen - Master 1 Informatique**  
+**INSI 2026**
+
+## Contexte academique
+
+Ce projet s'inscrit dans le cadre du cours de **Conception avancee d'un systeme ERP oriente services (SOA) et decisionnel (BI, Data Mining, Reporting et IA)**. Il vise a concevoir et urbaniser un systeme d'information d'entreprise integrant :
+
+- **Systeme ERP** pour la gestion operationnelle
+- **Architecture orientee services (SOA)** pour l'interoperabilite
+- **Business Intelligence (BI)** pour l'aide a la decision
+- **Data Mining** pour l'extraction de connaissances
+- **Intelligence Artificielle (IA)** pour l'analyse avancee et le reporting intelligent
+
+### Equipe de developpement
+
+- **Hasinjaka**
+- **Miora**
+- **Tiantsoa**
+- **Tsiori**
+
+---
+
+## Description du projet
+
 Systeme d'information integre pour la gestion de stock et de distribution,
 avec Business Intelligence, Data Mining et Reporting assiste par IA.
 
