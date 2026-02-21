@@ -1,0 +1,622 @@
+run_id,started_at,ended_at,status,extract_rows,loaded_dim_rows,loaded_fact_rows,error_message
+run_20260218_080404,2026-02-18T08:04:04.066899,2026-02-18T08:04:05.441533,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 106, in main
+    token = api_login()
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 48, in api_login
+    raise RuntimeError(""ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"")
+RuntimeError: ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"
+run_20260218_080743,2026-02-18T08:07:43.402203,2026-02-18T08:07:43.792743,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 106, in main
+    token = api_login()
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 48, in api_login
+    raise RuntimeError(""ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"")
+RuntimeError: ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"
+run_20260218_081512,2026-02-18T08:15:12.017135,2026-02-18T08:15:12.443972,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 106, in main
+    token = api_login()
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 48, in api_login
+    raise RuntimeError(""ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"")
+RuntimeError: ETL_API_USERNAME and ETL_API_PASSWORD are required for API extraction"
+manual,2026-02-18T08:24:31.714467,2026-02-18T08:26:03.709815,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 143, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 75, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidSchemaName: ERREUR:  le schéma « staging_raw » n'existe pas"
+manual,2026-02-18T08:27:55.038487,2026-02-18T08:29:27.375932,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 143, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 75, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidSchemaName: ERREUR:  le schéma « staging_raw » n'existe pas"
+manual,2026-02-18T08:32:15.205131,2026-02-18T08:33:51.469080,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 236, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 143, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 75, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidSchemaName: ERREUR:  le schéma « staging_raw » n'existe pas"
+manual,2026-02-18T08:39:48.113615,2026-02-18T08:39:48.621386,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 9, in <module>
+    from dotenv import load_dotenv
+ModuleNotFoundError: No module named 'dotenv'"
+manual,2026-02-18T08:45:15.036336,2026-02-18T08:46:42.940490,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 144, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 76, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidSchemaName: ERREUR:  le schéma « staging_raw » n'existe pas"
+manual,2026-02-18T08:47:56.295112,2026-02-18T08:49:58.493012,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 142, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 79, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<24 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.ForeignKeyViolation: ERREUR:  une instruction insert ou update sur la table « fact_order_status_transition » viole la contrainte de clé
+étrangère « fact_order_status_transition_status_date_key_fkey »
+DETAIL:  La clé (status_date_key)=(20190108) n'est pas présente dans la table « dim_date »."
+manual,2026-02-18T08:50:41.130969,2026-02-18T08:52:38.916511,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 80, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<24 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.ForeignKeyViolation: ERREUR:  une instruction insert ou update sur la table « fact_order_status_transition » viole la contrainte de clé
+étrangère « fact_order_status_transition_status_date_key_fkey »
+DETAIL:  La clé (status_date_key)=(20190108) n'est pas présente dans la table « dim_date »."
+manual,2026-02-18T08:53:44.549941,2026-02-18T08:55:24.996777,SUCCESS,,,,
+manual,2026-02-19T19:40:32.208296,2026-02-19T19:42:04.794868,SUCCESS,,,,
+manual,2026-02-20T05:59:06.476330,2026-02-20T06:00:43.452335,SUCCESS,,,,
+manual,2026-02-20T06:07:39.062370,2026-02-20T06:08:58.589121,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 144, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 76, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidSchemaName: ERREUR:  le schéma « staging_raw » n'existe pas"
+manual,2026-02-20T06:10:24.442194,2026-02-20T06:11:41.526005,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 144, in main
+    truncate_raw_tables(cur)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 76, in truncate_raw_tables
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedTable: ERREUR:  la relation « staging_raw.customers_raw » n'existe pas"
+manual,2026-02-20T06:12:07.163945,2026-02-20T06:13:30.705121,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 146, in main
+    extracted[""customers""] = insert_rows(
+                             ~~~~~~~~~~~^
+        cur,
+        ^^^^
+    ...<3 lines>...
+        run_id,
+        ^^^^^^^
+    )
+    ^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 99, in insert_rows
+    cur.execute(sql, (*values, run_id))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « segment » de la relation « customers_raw » n'existe pas
+LINE 1: ...ging_raw.customers_raw (customer_id,customer_name,segment,ci...
+                                                             ^"
+manual,2026-02-20T06:14:04.459493,2026-02-20T06:15:25.525127,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 146, in main
+    extracted[""customers""] = insert_rows(
+                             ~~~~~~~~~~~^
+        cur,
+        ^^^^
+    ...<3 lines>...
+        run_id,
+        ^^^^^^^
+    )
+    ^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 99, in insert_rows
+    cur.execute(sql, (*values, run_id))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidTextRepresentation: ERREUR:  syntaxe en entrée invalide pour le type integer : « AA-10315 »
+LINE 1: ...n,email,created_at,updated_at,etl_run_id) VALUES ('AA-10315'...
+                                                             ^"
+manual,2026-02-20T06:16:03.928015,2026-02-20T06:17:29.822389,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 172, in main
+    extracted[""products""] = insert_rows(
+                            ~~~~~~~~~~~^
+        cur,
+        ^^^^
+    ...<17 lines>...
+        run_id,
+        ^^^^^^^
+    )
+    ^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 99, in insert_rows
+    cur.execute(sql, (*values, run_id))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « category » de la relation « products_raw » n'existe pas
+LINE 1: ...staging_raw.products_raw (product_id,product_name,category,s...
+                                                             ^"
+manual,2026-02-20T06:17:59.079962,2026-02-20T06:19:23.327328,FAILED,,,,"Step extract failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 238, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 214, in main
+    extracted[""order_lines""] = insert_rows(
+                               ~~~~~~~~~~~^
+        cur,
+        ^^^^
+    ...<3 lines>...
+        run_id,
+        ^^^^^^^
+    )
+    ^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\extract\extract_oltp.py"", line 99, in insert_rows
+    cur.execute(sql, (*values, run_id))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « row_id » de la relation « order_lines_raw » n'existe pas
+LINE 1: INSERT INTO staging_raw.order_lines_raw (row_id,order_id,pro...
+                                                 ^"
+manual,2026-02-20T06:21:11.664273,2026-02-20T06:23:07.055182,FAILED,,,,"Step normalize failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 184, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 21, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<7 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedTable: ERREUR:  la relation « staging_clean.customers_clean » n'existe pas"
+manual,2026-02-20T06:24:07.361615,2026-02-20T06:26:10.463892,FAILED,,,,"Step normalize failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 184, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 34, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<18 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « customer_name_normalized » de la relation « customers_clean » n'existe pas
+LINE 3:                     customer_id, customer_name, customer_nam...
+                                                        ^"
+manual,2026-02-20T06:26:54.140632,2026-02-20T06:28:26.089780,FAILED,,,,"Step normalize failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 184, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\normalize.py"", line 58, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « contact_email_normalized » de la relation « suppliers_clean » n'existe pas
+LINE 4:                     country, contact_email, contact_email_no...
+                                                    ^"
+manual,2026-02-20T06:28:43.536954,2026-02-20T06:30:08.073381,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 22, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<12 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedTable: ERREUR:  la relation « dwh.dim_customer » n'existe pas
+LINE 2:                 INSERT INTO dwh.dim_customer (
+                                    ^"
+manual,2026-02-20T06:31:42.954018,2026-02-20T06:33:06.191192,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 22, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<12 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « valid_from » de la relation « dim_customer » n'existe pas
+LINE 4:                   valid_from, valid_to, is_current, customer...
+                          ^"
+manual,2026-02-20T06:33:22.814962,2026-02-20T06:34:51.469064,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 22, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<12 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « customer_hash » de la relation « dim_customer » n'existe pas
+LINE 4: ...                valid_from, valid_to, is_current, customer_h...
+                                                             ^"
+manual,2026-02-20T06:36:27.825951,2026-02-20T06:37:53.134230,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 56, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<12 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « supplier_id » de la relation « dim_product » n'existe pas
+LINE 4:                   supplier_id, valid_from, valid_to, is_curr...
+                          ^"
+manual,2026-02-20T06:39:29.571225,2026-02-20T06:40:56.314823,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 73, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<5 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « status_code » de la relation « dim_order_status » n'existe pas
+LINE 2:                 INSERT INTO dwh.dim_order_status(status_code...
+                                                         ^"
+manual,2026-02-20T06:44:01.717752,2026-02-20T06:45:23.638970,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 73, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<5 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidColumnReference: ERREUR:  il n'existe aucune contrainte unique ou contrainte d'exclusion correspondant à la spécification ON CONFLICT"
+manual,2026-02-20T06:51:27.729587,2026-02-20T06:52:52.109817,FAILED,,,,"Step conform_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 101, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\transform\conform_dimensions.py"", line 83, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<5 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.UndefinedTable: ERREUR:  la relation « dwh.dim_ship_mode » n'existe pas
+LINE 2:                 INSERT INTO dwh.dim_ship_mode(ship_mode_code...
+                                    ^"
+manual,2026-02-20T07:04:24.656816,2026-02-20T07:05:49.598024,FAILED,,,,"Step load_dimensions failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_dimensions.py"", line 74, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_dimensions.py"", line 50, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<10 lines>...
+        """"""
+        ^^^
+    )
+    ^
+psycopg2.errors.InvalidColumnReference: ERREUR:  il n'existe aucune contrainte unique ou contrainte d'exclusion correspondant à la spécification ON CONFLICT"
+manual,2026-02-20T07:17:38.966599,2026-02-20T07:19:05.827228,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 22, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<53 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « etl_loaded_at » de la relation « fact_sales_order_line » n'existe pas
+LINE 53:                     etl_loaded_at = NOW();
+                             ^"
+manual,2026-02-20T07:19:25.099385,2026-02-20T07:20:52.186011,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 80, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<24 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « order_id » de la relation « fact_order_status_transition » n'existe pas
+LINE 3:                     order_id, status_date_key, status_key, c...
+                            ^"
+manual,2026-02-20T07:21:17.362159,2026-02-20T07:22:43.674100,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 80, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<24 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « etl_loaded_at » de la relation « fact_order_status_transition » n'existe pas
+LINE 24:                     etl_loaded_at = NOW();
+                             ^"
+manual,2026-02-20T07:23:37.714829,2026-02-20T07:25:05.100129,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 80, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<24 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.InvalidColumnReference: ERREUR:  il n'existe aucune contrainte unique ou contrainte d'exclusion correspondant à la spécification ON CONFLICT"
+manual,2026-02-20T07:26:21.451358,2026-02-20T07:27:50.590348,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « supplier_key » de la relation « fact_inventory_snapshot » n'existe pas
+LINE 3: ...                  snapshot_date_key, product_key, supplier_k...
+                                                             ^"
+manual,2026-02-20T07:28:32.212050,2026-02-20T07:30:00.969718,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « stock_quantity » de la relation « fact_inventory_snapshot » n'existe pas
+LINE 4:                     stock_quantity, stock_value, etl_run_id
+                            ^"
+manual,2026-02-20T10:25:07.018313,2026-02-20T10:26:59.117045,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « stock_quantity » de la relation « fact_inventory_snapshot » n'existe pas
+LINE 4:                     stock_quantity, stock_value, etl_run_id
+                            ^"
+manual,2026-02-20T10:40:17.045177,2026-02-20T10:42:00.690112,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne p.quantity_on_hand n'existe pas
+LINE 10:                     p.quantity_on_hand,
+                             ^"
+manual,2026-02-20T11:02:18.443079,2026-02-20T11:03:45.538376,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne excluded.stock_quantity n'existe pas
+LINE 18:                     quantity_on_hand = EXCLUDED.stock_quanti...
+                                                ^"
+manual,2026-02-20T11:04:22.724857,2026-02-20T11:05:49.010369,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « etl_loaded_at » de la relation « fact_inventory_snapshot » n'existe pas
+LINE 21:                     etl_loaded_at = NOW();
+                             ^"
+manual,2026-02-20T11:09:29.919003,2026-02-20T11:10:44.943352,FAILED,,,,"Step load_facts failed: Traceback (most recent call last):
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 144, in <module>
+    main()
+    ~~~~^^
+  File ""D:\Hasinjaka\fianarana\INSI\S7\BI_et_Data_analytics\projet_M1\projet-erp-distribution\olap\etl\load\load_facts.py"", line 109, in main
+    cur.execute(
+    ~~~~~~~~~~~^
+        """"""
+        ^^^
+    ...<21 lines>...
+        (run_id,),
+        ^^^^^^^^^^
+    )
+    ^
+psycopg2.errors.InvalidColumnReference: ERREUR:  il n'existe aucune contrainte unique ou contrainte d'exclusion correspondant à la spécification ON CONFLICT"
+manual,2026-02-20T11:15:35.696685,2026-02-20T11:17:06.870456,SUCCESS,,,,

@@ -1,0 +1,28 @@
+# Requirements pour pérennité du système Analytics
+# Version stable testée - ne pas mettre à jour sans tests
+
+# Core dependencies
+pandas==1.5.3
+numpy==1.24.3
+psycopg2-binary==2.9.5
+
+# Business Intelligence
+plotly==5.15.0
+dash==2.11.1
+dash-table==5.0.0
+
+# Data Mining
+scikit-learn==1.3.0
+matplotlib==3.7.1
+seaborn==0.12.2
+
+# Backend/ETL
+requests==2.31.0
+python-dotenv==1.0.0
+sqlalchemy==2.0.20
+
+# IA Reporting (optionnel)
+openai==0.28.1
+
+# Utilities
+jinja2==3.1.2

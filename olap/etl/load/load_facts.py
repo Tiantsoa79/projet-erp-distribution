@@ -110,7 +110,7 @@ def main():
                 """
                 INSERT INTO dwh.fact_inventory_snapshot (
                     snapshot_date_key, product_key, supplier_key,
-                    stock_quantity, stock_value, etl_run_id
+                    quantity_on_hand, stock_value, etl_run_id
                 )
                 SELECT
                     CAST(to_char(CURRENT_DATE, 'YYYYMMDD') AS INTEGER),
@@ -124,7 +124,7 @@ def main():
                 LEFT JOIN dwh.dim_supplier ds ON ds.supplier_id = p.supplier_id AND ds.is_current = TRUE
                 ON CONFLICT (snapshot_date_key, product_key) DO UPDATE SET
                     supplier_key = EXCLUDED.supplier_key,
-                    stock_quantity = EXCLUDED.stock_quantity,
+                    quantity_on_hand = EXCLUDED.quantity_on_hand,
                     stock_value = EXCLUDED.stock_value,
                     etl_run_id = EXCLUDED.etl_run_id,
                     etl_loaded_at = NOW();
