@@ -1,0 +1,27 @@
+{
+  "name": "erp-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ERP Distribution - API SOA (gateway + micro-services)",
+  "main": "index.js",
+  "scripts": {
+    "db:import": "node scripts/import-csv.js",
+    "sales:start": "node services/sales/server.js",
+    "catalog:start": "node services/catalog/server.js",
+    "customers:start": "node services/customers/server.js",
+    "suppliers:start": "node services/suppliers/server.js",
+    "gateway:start": "node services/gateway/server.js",
+    "start:all": "node scripts/start-all.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

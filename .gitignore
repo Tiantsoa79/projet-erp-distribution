@@ -1,11 +1,24 @@
 # Dependencies
 **/node_modules/
+**/venv/
+**/__pycache__/
+**/*.pyc
 
 # Env files (keep examples)
+.env
 **/.env
 **/.env.local
 **/.env.*.local
 !**/.env.example
+!.env.example
+
+# ETL
+BI/.etl_checksums.json
+
+# Results / generated
+results/
+data_mining/results/
+ai-reporting/results/
 
 # Logs
 **/*.log
