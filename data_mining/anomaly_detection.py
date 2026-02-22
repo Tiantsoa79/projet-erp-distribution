@@ -9,13 +9,17 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime, timedelta
+from pathlib import Path
 
 class AnomalyDetection:
-    def __init__(self, connection):
+    def __init__(self, connection, results_base_path="results"):
         self.conn = connection
+        self.results_base_path = Path(results_base_path)
         self.results = {}
         
     def load_transaction_data(self, quick=False):
@@ -296,7 +300,7 @@ class AnomalyDetection:
         plt.title('Résumé')
         
         plt.tight_layout()
-        plt.savefig('results/plots/anomaly_detection.png', dpi=300, bbox_inches='tight')
+        plt.savefig(self.results_base_path / 'plots' / 'anomaly_detection.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def run(self, quick=False):
@@ -322,8 +326,8 @@ class AnomalyDetection:
         df_with_anomalies['is_anomaly'] = is_anomaly
         df_with_anomalies['anomaly_score'] = anomaly_scores
         
-        df_with_anomalies.to_csv('results/data/transactions_with_anomalies.csv', index=False)
-        analysis_results['anomalies_df'].to_csv('results/data/anomalies_only.csv', index=False)
+        df_with_anomalies.to_csv(self.results_base_path / 'data' / 'transactions_with_anomalies.csv', index=False)
+        analysis_results['anomalies_df'].to_csv(self.results_base_path / 'data' / 'anomalies_only.csv', index=False)
         
         self.results = {
             'n_anomalies': len(analysis_results['anomalies_df']),

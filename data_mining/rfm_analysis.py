@@ -9,13 +9,17 @@ Segmentation client basée sur trois dimensions clés :
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime, timedelta
+from pathlib import Path
 
 class RFMAnalysis:
-    def __init__(self, connection):
+    def __init__(self, connection, results_base_path="results"):
         self.conn = connection
+        self.results_base_path = Path(results_base_path)
         self.results = {}
         
     def load_rfm_data(self, quick=False):
@@ -253,7 +257,7 @@ class RFMAnalysis:
         plt.title('Distribution du montant')
         
         plt.tight_layout()
-        plt.savefig('results/plots/rfm_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig(self.results_base_path / 'plots' / 'rfm_analysis.png', dpi=300, bbox_inches='tight')
         plt.close()
         
         # Graphique 3D des segments
@@ -276,7 +280,7 @@ class RFMAnalysis:
         ax.set_title('Segmentation RFM - Vue 3D')
         ax.legend()
         
-        plt.savefig('results/plots/rfm_3d.png', dpi=300, bbox_inches='tight')
+        plt.savefig(self.results_base_path / 'plots' / 'rfm_3d.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def generate_segment_recommendations(self, segment_analysis):
@@ -335,8 +339,8 @@ class RFMAnalysis:
         recommendations = self.generate_segment_recommendations(segment_analysis)
         
         # Exporter les résultats
-        rfm.to_csv('results/data/rfm_analysis.csv', index=False)
-        segment_analysis.to_csv('results/data/rfm_segments.csv', index=False)
+        rfm.to_csv(self.results_base_path / 'data' / 'rfm_analysis.csv', index=False)
+        segment_analysis.to_csv(self.results_base_path / 'data' / 'rfm_segments.csv', index=False)
         
         self.results = {
             'segments': segment_analysis,

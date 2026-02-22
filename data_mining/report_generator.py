@@ -8,10 +8,12 @@ visualisations et recommandations.
 import pandas as pd
 from datetime import datetime
 import os
+from pathlib import Path
 from jinja2 import Template
 
 class ReportGenerator:
-    def __init__(self):
+    def __init__(self, results_base_path="results"):
+        self.results_base_path = Path(results_base_path)
         self.template = self.get_html_template()
         
     def get_html_template(self):
@@ -378,7 +380,7 @@ class ReportGenerator:
         
         # Sauvegarder le fichier
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        report_path = f'results/reports/data_mining_report_{timestamp}.html'
+        report_path = self.results_base_path / 'reports' / f'data_mining_report_{timestamp}.html'
         
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(html_content)

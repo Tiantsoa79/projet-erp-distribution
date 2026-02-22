@@ -16,6 +16,7 @@ Reporting assiste par l'Intelligence Artificielle.
 | **Statistique** | Insights et recommandations bases sur des regles | Aucune cle API |
 | **IA (OpenAI)** | Analyses enrichies par GPT-4 | `OPENAI_API_KEY` |
 | **IA (Claude)** | Analyses enrichies par Claude | `CLAUDE_API_KEY` |
+| **IA (Gemini)** | Analyses enrichies par Gemini (GRATUIT) | `GEMINI_API_KEY` |
 | **IA (Local)** | LLM local via Ollama | Ollama en cours d'execution |
 
 Le module fonctionne **toujours**, meme sans cle API (mode fallback statistique).
@@ -51,7 +52,8 @@ ai-reporting/
 Variables dans le `.env` racine (section AI REPORTING) :
 
 ```
-AI_PROVIDER=openai          # openai | claude | local
+AI_PROVIDER=gemini          # openai | claude | gemini | local
 OPENAI_API_KEY=sk-...       # Cle API OpenAI (optionnel)
 CLAUDE_API_KEY=sk-ant-...   # Cle API Claude (optionnel)
+GEMINI_API_KEY=AIza...      # Cle API Gemini (optionnel, GRATUIT)
 ```

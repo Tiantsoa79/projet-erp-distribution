@@ -1,7 +1,7 @@
 """
 Client LLM multi-provider pour le reporting IA.
 
-Supporte : OpenAI, Anthropic Claude, LLM local (Ollama).
+Supporte : OpenAI, Anthropic Claude, Google Gemini, LLM local (Ollama).
 Si aucune cle API n'est configuree, le module fonctionne en mode
 "fallback" avec des analyses statistiques pures (sans IA).
 """
@@ -27,6 +27,11 @@ class LLMClient:
                 "api_key": os.getenv("CLAUDE_API_KEY", ""),
                 "base_url": "https://api.anthropic.com/v1",
                 "model": os.getenv("CLAUDE_MODEL", "claude-3-sonnet-20240229"),
+            },
+            "gemini": {
+                "api_key": os.getenv("GEMINI_API_KEY", ""),
+                "base_url": "https://generativelanguage.googleapis.com/v1beta",
+                "model": os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
             },
             "local": {
                 "api_key": "",
@@ -71,6 +76,8 @@ class LLMClient:
                 return self._call_openai(cfg, messages, temperature, max_tokens)
             elif self.provider == "claude":
                 return self._call_claude(cfg, messages, temperature, max_tokens)
+            elif self.provider == "gemini":
+                return self._call_gemini(cfg, messages, temperature, max_tokens)
             elif self.provider == "local":
                 return self._call_local(cfg, messages, temperature, max_tokens)
         except Exception as exc:
@@ -124,6 +131,36 @@ class LLMClient:
             return resp.json()["content"][0]["text"]
         print(f"[ai/claude] HTTP {resp.status_code}: {resp.text[:200]}")
         return None
+
+    def _call_gemini(self, cfg, messages, temperature, max_tokens):
+        if not cfg["api_key"]:
+            return None
+        
+        # Convert messages to Gemini format
+        import google.genai as genai
+        
+        try:
+            # Convert messages to Gemini prompt format
+            prompt = ""
+            for msg in messages:
+                if msg["role"] == "system":
+                    prompt += f"System: {msg['content']}\n\n"
+                elif msg["role"] == "user":
+                    prompt += f"User: {msg['content']}\n\n"
+                elif msg["role"] == "assistant":
+                    prompt += f"Assistant: {msg['content']}\n\n"
+            
+            client = genai.Client(api_key=cfg["api_key"])
+            response = client.models.generate_content(
+                model=cfg["model"],
+                contents=prompt
+            )
+            
+            return response.text
+            
+        except Exception as exc:
+            print(f"[ai/gemini] Erreur: {exc}")
+            return None
 
     def _call_local(self, cfg, messages, temperature, max_tokens):
         headers = {"Content-Type": "application/json"}

@@ -10,13 +10,17 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
+from pathlib import Path
 
 class ClusteringAnalysis:
-    def __init__(self, connection):
+    def __init__(self, connection, results_base_path="results"):
         self.conn = connection
+        self.results_base_path = Path(results_base_path)
         self.results = {}
         
     def load_customer_features(self, quick=False):
@@ -136,7 +140,7 @@ class ClusteringAnalysis:
         plt.title('Score de silhouette')
         
         plt.tight_layout()
-        plt.savefig('results/plots/clustering_optimal_k.png', dpi=300, bbox_inches='tight')
+        plt.savefig(self.results_base_path / 'plots' / 'clustering_optimal_k.png', dpi=300, bbox_inches='tight')
         plt.close()
         
         # Choisir k optimal (simple: max silhouette score)
@@ -237,7 +241,7 @@ class ClusteringAnalysis:
         plt.title('Caractéristiques moyennes par cluster')
         
         plt.tight_layout()
-        plt.savefig('results/plots/clustering_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig(self.results_base_path / 'plots' / 'clustering_analysis.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def generate_cluster_profiles(self, cluster_stats_df):
@@ -297,8 +301,8 @@ class ClusteringAnalysis:
         profiles = self.generate_cluster_profiles(cluster_stats_df)
         
         # Exporter les résultats
-        df_with_clusters.to_csv('results/data/customers_with_clusters.csv', index=False)
-        cluster_stats_df.to_csv('results/data/cluster_statistics.csv', index=False)
+        df_with_clusters.to_csv(self.results_base_path / 'data' / 'customers_with_clusters.csv', index=False)
+        cluster_stats_df.to_csv(self.results_base_path / 'data' / 'cluster_statistics.csv', index=False)
         
         self.results = {
             'n_clusters': optimal_k,

@@ -44,6 +44,7 @@ def ensure_results_dirs():
     base_path = Path(os.getenv("MINING_RESULTS_PATH", "results"))
     for subdir in ["plots", "reports", "data"]:
         (base_path / subdir).mkdir(parents=True, exist_ok=True)
+    return base_path
 
 def print_header():
     """Afficher l'en-tête du pipeline"""
@@ -79,7 +80,7 @@ def main():
     print_header()
     
     # Créer les répertoires de résultats
-    ensure_results_dirs()
+    results_base_path = ensure_results_dirs()
     
     # Connexion à la base
     try:
@@ -97,7 +98,7 @@ def main():
         if args.analysis in ["exploratory", "all"]:
             print("\n--- 1. Analyse Exploratoire ---")
             try:
-                ea = ExploratoryAnalysis(conn)
+                ea = ExploratoryAnalysis(conn, results_base_path)
                 ea_results = ea.run(quick=args.quick)
                 results["Exploratoire"] = {"success": True, "message": f"{ea_results['summary']['orders']['total_records']} enregistrements analysés"}
                 print("[OK] Analyse exploratoire terminee")
@@ -109,7 +110,7 @@ def main():
         if args.analysis in ["clustering", "all"]:
             print("\n--- 2. Clustering Clients ---")
             try:
-                ca = ClusteringAnalysis(conn)
+                ca = ClusteringAnalysis(conn, results_base_path)
                 ca_results = ca.run(quick=args.quick)
                 results["Clustering"] = {"success": True, "message": f"{ca_results['n_clusters']} clusters identifies"}
                 print("[OK] Clustering termine")
@@ -121,7 +122,7 @@ def main():
         if args.analysis in ["anomaly", "all"]:
             print("\n--- 3. Détection d'Anomalies ---")
             try:
-                ad = AnomalyDetection(conn)
+                ad = AnomalyDetection(conn, results_base_path)
                 ad_results = ad.run(quick=args.quick)
                 results["Anomalies"] = {"success": True, "message": f"{ad_results['n_anomalies']} anomalies detectees"}
                 print("[OK] Détection d'anomalies terminee")
@@ -133,7 +134,7 @@ def main():
         if args.analysis in ["rfm", "all"]:
             print("\n--- 4. Analyse RFM ---")
             try:
-                rfm = RFMAnalysis(conn)
+                rfm = RFMAnalysis(conn, results_base_path)
                 rfm_results = rfm.run(quick=args.quick)
                 results["RFM"] = {"success": True, "message": f"{len(rfm_results['segments'])} segments RFM crees"}
                 print("[OK] Analyse RFM terminee")
@@ -144,7 +145,7 @@ def main():
         # 5. Génération du rapport HTML
         print("\n--- 5. Génération du Rapport ---")
         try:
-            rg = ReportGenerator()
+            rg = ReportGenerator(results_base_path)
             report_path = rg.generate_report(results)
             results["Rapport"] = {"success": True, "message": f"Rapport genere : {report_path}"}
             print("[OK] Rapport HTML genere")

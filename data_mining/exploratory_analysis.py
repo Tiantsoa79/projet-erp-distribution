@@ -7,14 +7,18 @@ patterns et insights business.
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import os
+from pathlib import Path
 
 class ExploratoryAnalysis:
-    def __init__(self, connection):
+    def __init__(self, connection, results_base_path="results"):
         self.conn = connection
+        self.results_base_path = Path(results_base_path)
         self.results = {}
         
     def load_data(self, quick=False):
@@ -146,7 +150,7 @@ class ExploratoryAnalysis:
         plt.ylabel('Montant (€)')
         
         plt.tight_layout()
-        plot_path = 'results/plots/order_amounts_distribution.png'
+        plot_path = self.results_base_path / 'plots' / 'order_amounts_distribution.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         plots['order_amounts'] = plot_path
@@ -160,7 +164,7 @@ class ExploratoryAnalysis:
         plt.ylabel('Région')
         
         plt.tight_layout()
-        plot_path = 'results/plots/sales_by_region.png'
+        plot_path = self.results_base_path / 'plots' / 'sales_by_region.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         plots['regional_sales'] = plot_path
@@ -174,7 +178,7 @@ class ExploratoryAnalysis:
         plt.ylabel('Produit')
         
         plt.tight_layout()
-        plot_path = 'results/plots/top_products.png'
+        plot_path = self.results_base_path / 'plots' / 'top_products.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         plots['top_products'] = plot_path
@@ -218,7 +222,7 @@ class ExploratoryAnalysis:
         plt.ylabel('Ventes (€)')
         
         plt.tight_layout()
-        plot_path = 'results/plots/temporal_patterns.png'
+        plot_path = self.results_base_path / 'plots' / 'temporal_patterns.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         plots['temporal_patterns'] = plot_path
@@ -250,7 +254,7 @@ class ExploratoryAnalysis:
         plt.title('Matrice de corrélation - Métriques clients')
         
         plt.tight_layout()
-        plot_path = 'results/plots/correlation_matrix.png'
+        plot_path = self.results_base_path / 'plots' / 'correlation_matrix.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         
@@ -275,9 +279,9 @@ class ExploratoryAnalysis:
         correlations = self.analyze_correlations(data)
         
         # Exporter les données
-        data['orders_summary'].to_csv('results/data/orders_summary.csv', index=False)
-        data['products_analysis'].to_csv('results/data/products_analysis.csv', index=False)
-        data['temporal_patterns'].to_csv('results/data/temporal_patterns.csv', index=False)
+        data['orders_summary'].to_csv(self.results_base_path / 'data' / 'orders_summary.csv', index=False)
+        data['products_analysis'].to_csv(self.results_base_path / 'data' / 'products_analysis.csv', index=False)
+        data['temporal_patterns'].to_csv(self.results_base_path / 'data' / 'temporal_patterns.csv', index=False)
         
         self.results = {
             'summary': summary,
