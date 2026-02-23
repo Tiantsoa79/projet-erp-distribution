@@ -30,6 +30,7 @@ from urllib.request import Request, urlopen
 import psycopg2
 
 CHECKSUM_FILE = pathlib.Path(__file__).resolve().parent.parent / ".etl_checksums.json"
+ORCHESTRATOR_STATE_FILE = pathlib.Path(__file__).resolve().parent.parent / ".orchestrator_state.json"
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +150,29 @@ def _save_checksums(checksums: Dict[str, str]):
 # Main
 # ---------------------------------------------------------------------------
 
+def _notify_orchestrator(data_changed: bool, counts: Dict):
+    """Notifie l'orchestrateur des changements de données"""
+    try:
+        state = {
+            "timestamp": os.getenv("ETL_RUN_ID", "manual"),
+            "data_changed": data_changed,
+            "counts": counts,
+            "last_run": pathlib.Path(__file__).resolve().parent.parent.name
+        }
+        
+        # Écrire l'état pour l'orchestrateur
+        with open(ORCHESTRATOR_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, default=str)
+        
+        if data_changed:
+            print(f"[extract] Changements notifiés à l'orchestrateur: {counts}")
+        else:
+            print("[extract] Aucun changement, notification envoyée")
+            
+    except Exception as e:
+        print(f"[extract] Erreur notification orchestrateur: {e}")
+
+
 def run(run_id: str) -> Tuple[Dict[str, int], bool]:
     """Extrait les donnees API et les charge dans staging_raw.
 
@@ -207,6 +231,8 @@ def run(run_id: str) -> Tuple[Dict[str, int], bool]:
             "products": len(products), "orders": len(orders),
             "order_lines": len(order_lines), "order_status_history": len(order_status_history),
         }
+        # Notifier l'orchestrateur même sans changements
+        _notify_orchestrator(data_changed, counts)
         return counts, False
 
     changed_entities = [k for k in new_checksums if new_checksums[k] != old_checksums.get(k)]
@@ -256,9 +282,12 @@ def run(run_id: str) -> Tuple[Dict[str, int], bool]:
 
     # Sauvegarder les checksums apres chargement reussi
     _save_checksums(new_checksums)
+    
+    # Notifier l'orchestrateur des changements
+    _notify_orchestrator(data_changed, counts)
 
     print(f"[extract] Done: {counts}")
-    return counts, True
+    return counts, data_changed
 
 
 if __name__ == "__main__":

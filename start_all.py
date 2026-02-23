@@ -7,11 +7,11 @@ Lance tous les composants du systeme :
   1. ERP API (gateway + micro-services)
   2. Interface OLAP (frontend decisionnelle)
 
-Les composants BI, Data Mining et AI Reporting sont executes
-a la demande via l'interface OLAP (ou en ligne de commande).
+L'automatisation quotidienne (ETL + Data Mining + AI Reporting) 
+s'execute via daily_automation.py.
 
 Usage :
-    python start_all.py            # Lancer tout
+    python start_all.py            # Lancer API + Interface
     python start_all.py --api      # ERP API uniquement
     python start_all.py --ui       # Interface OLAP uniquement
 
@@ -64,6 +64,43 @@ def check_env():
         else:
             print(f"{C.RED}[ERREUR] Ni .env ni .env.example trouve a la racine.{C.END}")
             sys.exit(1)
+
+
+def check_postgres():
+    """Vérifie que PostgreSQL est en cours d'exécution et accessible."""
+    try:
+        import psycopg2
+        from dotenv import load_dotenv
+        
+        # Charger l'environnement
+        if ENV_FILE.exists():
+            load_dotenv(ENV_FILE)
+        
+        # Tenter la connexion
+        conn = psycopg2.connect(
+            host=os.getenv('PGHOST', 'localhost'),
+            port=int(os.getenv('PGPORT', '5432')),
+            database=os.getenv('PGDATABASE', 'erp_distribution'),
+            user=os.getenv('PGUSER', 'postgres'),
+            password=os.getenv('PGPASSWORD', ''),
+            connect_timeout=5
+        )
+        conn.close()
+        print(f"{C.GREEN}[OK] PostgreSQL accessible{C.END}")
+        return True
+    except psycopg2.OperationalError as e:
+        print(f"{C.RED}[ERREUR] PostgreSQL inaccessible : {e}{C.END}")
+        print(f"{C.YELLOW}  Solutions possibles :{C.END}")
+        print(f"{C.YELLOW}  1. Vérifiez que PostgreSQL est démarré{C.END}")
+        print(f"{C.YELLOW}  2. Vérifiez les identifiants dans .env (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD){C.END}")
+        print(f"{C.YELLOW}  3. Vérifiez que la base de données existe{C.END}")
+        return False
+    except ImportError:
+        print(f"{C.RED}[ERREUR] psycopg2 non installé. Exécutez : pip install psycopg2-binary{C.END}")
+        return False
+    except Exception as e:
+        print(f"{C.RED}[ERREUR] Erreur inattendue PostgreSQL : {e}{C.END}")
+        return False
 
 
 def check_node():
@@ -170,6 +207,9 @@ def main():
 
     if not check_node():
         sys.exit(1)
+    
+    if not check_postgres():
+        sys.exit(1)
 
     processes = {}
 
@@ -200,10 +240,10 @@ def main():
     if "interface" in processes:
         port = os.environ.get("INTERFACE_PORT", os.environ.get("PORT", "3030"))
         print(f"    Interface OLAP  : http://localhost:{port}")
-    print(f"\n  Composants executables via l'interface ou en CLI :")
-    print(f"    BI Pipeline     : python BI/run_pipeline.py")
-    print(f"    Data Mining     : python data_mining/run_mining.py")
-    print(f"    AI Reporting    : python ai-reporting/run_reporting.py")
+    
+    print(f"\n  Automatisation quotidienne :")
+    print(f"    python daily_automation.py           # Exécution immédiate")
+    print(f"    python daily_automation.py --schedule # Planification 24h")
     print(f"================================================================{C.END}")
     print(f"\n  Appuyez sur Ctrl+C pour arreter tous les composants.\n")
 

@@ -8,131 +8,59 @@ const AIPage = {
     return `
       <div class="page-header">
         <h1>AI Reporting</h1>
-        <p>Reporting assiste par l'Intelligence Artificielle — Insights, recommandations et data storytelling</p>
+        <p>Insights et recommandations assistées par IA</p>
       </div>
 
       <div class="ai-controls">
         <button id="btn-ai-run" class="btn btn-primary" onclick="AIPage.run(false)">
-          &#9733; Generer le rapport IA
+          🤖 Générer rapport IA
         </button>
         <button id="btn-ai-stat" class="btn btn-outline" onclick="AIPage.run(true)">
-          Statistique uniquement
+          📊 Statistique uniquement
         </button>
-        <span id="ai-status" class="status-badge status-idle">Pret</span>
-        <span id="ai-provider" class="ai-status-badge fallback">Mode: en attente</span>
+        <span id="ai-status" class="status-badge status-idle">Prêt</span>
       </div>
 
-      <!-- Chat avec Gemini -->
-      <div class="chat-section" style="margin: 20px 0;">
-        <div class="chart-card">
-          <h3>💬 Discutez avec Gemini IA</h3>
-          <p style="color:var(--text-secondary);margin-bottom:20px;">
-            Posez vos questions sur les données business, les rapports, ou demandez des analyses personnalisées.
-          </p>
-          
-          <div class="chat-container">
-            <div id="chat-messages" class="chat-messages" style="
-              height:350px;
-              overflow-y:auto;
-              border:2px solid var(--border);
-              border-radius:12px;
-              padding:20px;
-              background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-              margin-bottom:20px;
-              box-shadow:inset 0 2px 4px rgba(0,0,0,0.06);
-            ">
-              <div class="chat-welcome" style="
-                text-align:center;
-                color:var(--text-secondary);
-                padding:30px;
-                font-size:16px;
-                line-height:1.6;
-              ">
-                👋 Bonjour ! Je suis votre assistant IA Gemini. 
-                <br><br>
-                <strong>Exemples de questions :</strong><br>
-                • Quelles sont les tendances de ventes ce mois ?<br>
-                • Comment optimiser notre marge de 23.6% ?<br>
-                • Analyse la performance des clients<br>
-                • Stratégies pour récupérer la baisse de CA ?
-              </div>
+      <!-- Chat compact -->
+      <div class="chart-card">
+        <h3>💬 Chat IA</h3>
+        <div class="chat-compact">
+          <div id="chat-messages" class="chat-messages-compact">
+            <div class="chat-welcome-compact">
+              👋 Posez vos questions sur les données business
             </div>
-            
-            <div class="chat-input-group" style="display:flex;gap:15px;align-items:flex-end;">
-              <div style="flex:1;position:relative;">
-                <textarea 
-                  id="chat-input" 
-                  placeholder="💭 Posez votre question business ici..."
-                  style="
-                    width:100%;
-                    padding:15px;
-                    border:2px solid var(--border);
-                    border-radius:12px;
-                    resize:vertical;
-                    min-height:80px;
-                    max-height:150px;
-                    font-size:15px;
-                    line-height:1.5;
-                    font-family:inherit;
-                    background:var(--bg-primary);
-                    color:var(--text-primary);
-                    transition:all 0.3s ease;
-                  "
-                  rows="3"
-                  onkeypress="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();AIPage.sendChatMessage();}"
-                ></textarea>
-                <div id="typing-indicator" style="
-                  position:absolute;
-                  top:15px;
-                  right:15px;
-                  display:none;
-                  align-items:center;
-                  gap:5px;
-                  color:var(--primary-color);
-                  font-size:12px;
-                ">
-                  <span>🤖 Gemini écrit</span>
-                  <div class="typing-dots">
-                    <span>.</span><span>.</span><span>.</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                id="btn-chat-send" 
-                onclick="AIPage.sendChatMessage()"
-                class="btn btn-primary"
-                style="
-                  white-space:nowrap;
-                  padding:15px 25px;
-                  font-size:16px;
-                  border-radius:12px;
-                  min-height:80px;
-                  display:flex;
-                  align-items:center;
-                  gap:8px;
-                "
-              >
-                <span id="send-icon">💬</span>
-                <span id="send-text">Envoyer</span>
-              </button>
+          </div>
+          
+          <div class="chat-input-compact">
+            <textarea 
+              id="chat-input" 
+              placeholder="Votre question..."
+              rows="2"
+              onkeypress="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();AIPage.sendChatMessage();}"
+            ></textarea>
+            <button id="btn-chat-send" onclick="AIPage.sendChatMessage()" class="btn btn-primary btn-sm">
+              <span id="send-icon">💬</span>
+              <span id="send-text">Envoyer</span>
+            </button>
+            <div id="typing-indicator" class="typing-indicator" style="display:none;">
+              <span>🤖 L'IA réfléchit...</span>
             </div>
           </div>
         </div>
       </div>
 
       <div id="ai-results">
-        <div class="chart-card" style="text-align:center;padding:60px 20px;">
-          <p style="color:var(--text-secondary);font-size:15px;">
-            Cliquez sur <strong>Generer le rapport IA</strong> pour lancer l'analyse.<br>
-            Le rapport fonctionne meme sans cle API (mode statistique).
+        <div class="chart-card" style="text-align:center;padding:40px 20px;">
+          <p style="color:var(--text-secondary);">
+            Cliquez sur <strong>Générer rapport IA</strong> pour démarrer
           </p>
         </div>
       </div>
 
-      <div id="ai-terminal-section" style="display:none;margin-top:20px;">
+      <div id="ai-terminal-section" style="display:none;">
         <div class="chart-card">
-          <h3>Logs d'execution</h3>
-          <div id="ai-terminal" class="terminal">En attente...</div>
+          <h3>📋 Logs</h3>
+          <div id="ai-terminal" class="terminal-compact">En attente...</div>
         </div>
       </div>
     `;

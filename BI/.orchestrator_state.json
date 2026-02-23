@@ -1,0 +1,13 @@
+{
+  "timestamp": "run_20260223_160235",
+  "data_changed": false,
+  "counts": {
+    "customers": 793,
+    "suppliers": 50,
+    "products": 1861,
+    "orders": 4922,
+    "order_lines": 9800,
+    "order_status_history": 24610
+  },
+  "last_run": "BI"
+}
