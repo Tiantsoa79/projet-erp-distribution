@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.post('/run', (req, res) => {
   lastStatus = 'running';
   lastOutput = '';
 
-  const proc = spawn('python', args, { cwd, env: { ...process.env } });
+  const proc = spawn('py', ['-3.12', ...args], { cwd, env: { ...process.env } });
 
   proc.stdout.on('data', (data) => { lastOutput += data.toString(); });
   proc.stderr.on('data', (data) => { lastOutput += data.toString(); });
@@ -73,105 +74,116 @@ router.get('/results/latest', (req, res) => {
   }
 });
 
-// POST /ai/chat - Chat avec Gemini (Vrai Gemini + données OLAP)
-router.post('/chat', async (req, res) => {
+// POST /ai-chat
+router.post('/ai-chat', async (req, res) => {
   try {
-    const { message, context = 'business_analysis' } = req.body;
+    const { message, history = [] } = req.body;
     
-    if (!message || message.trim() === '') {
-      return res.status(400).json({ 
-        error: 'Message requis' 
-      });
+    if (!message) {
+      return res.status(400).json({ error: 'Message requis' });
     }
-    
-    // Charger les variables d'environnement
-    require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
-    
+
     const apiKey = process.env.GEMINI_API_KEY;
-    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-    
     if (!apiKey) {
-      return res.status(500).json({ 
-        error: 'Clé API Gemini non configurée' 
-      });
+      return res.status(500).json({ error: 'Clé API Gemini non configurée' });
     }
-    
-    // Données statiques pour le moment (fonctionnel)
-    const realTimeData = {
-      ca_total: 2261537,
-      nb_commandes: 4922,
-      nb_clients: 793,
-      marge: 23.6,
-      tendance_ca: 'baisse_35.4'
-    };
-    
-    // Importer Google Generative AI
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    
-    // Initialiser le client
+
+    // Récupérer le dernier rapport IA si disponible
+    let aiReportContext = '';
+    try {
+      const resultsDir = path.resolve(__dirname, '..', '..', 'ai-reporting', 'results');
+      if (fs.existsSync(resultsDir)) {
+        const files = fs.readdirSync(resultsDir).filter(f => f.endsWith('.json')).sort();
+        if (files.length > 0) {
+          const latestFile = files[files.length - 1];
+          const reportContent = fs.readFileSync(path.join(resultsDir, latestFile), 'utf8');
+          const report = JSON.parse(reportContent);
+          
+          // Créer un résumé du rapport pour le contexte
+          aiReportContext = `
+CONTEXTE - DERNIER RAPPORT IA GÉNÉRÉ:
+Date: ${report.generated_at || 'N/A'}
+IA disponible: ${report.ai_available ? 'Oui' : 'Non (mode statistique)'}
+
+RECOMMANDATIONS PRINCIPALES:
+${report.recommendations?.statistical?.slice(0, 3).map((rec, i) => 
+  `${i+1}. ${rec.priorite.toUpperCase()} - ${rec.domaine}: ${rec.recommandation.substring(0, 100)}...`
+).join('\n') || 'Aucune recommandation'}
+
+INSIGHTS CLÉS:
+${report.insights?.statistical?.slice(0, 3).map((insight, i) => 
+  `${i+1}. ${insight.titre}: ${insight.description.substring(0, 100)}...`
+).join('\n') || 'Aucun insight'}
+
+STORYTELLING:
+${report.storytelling?.ai_story?.substring(0, 200) || report.storytelling?.statistical_story?.substring(0, 200) || 'Aucun storytelling'}...
+`;
+        }
+      }
+    } catch (error) {
+      console.log('Erreur lecture rapport IA:', error.message);
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
-    const geminiModel = genAI.getGenerativeModel({ model: model });
-    
-    // Préparer le prompt simple
-    const prompt = `Tu es un assistant business expert pour ERP Distribution. 
-        
-Contexte de l'entreprise:
-- CA total: ${realTimeData.ca_total.toLocaleString('fr-FR')} EUR
-- Nombre de commandes: ${realTimeData.nb_commandes.toLocaleString('fr-FR')}
-- Nombre de clients: ${realTimeData.nb_clients.toLocaleString('fr-FR')}
-- Marge moyenne: ${realTimeData.marge}%
-- Tendance récente: ${realTimeData.tendance_ca}
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-Question de l'utilisateur: ${message}
+    // Construire le contexte avec l'historique et le rapport
+    const chatHistory = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
 
-Réponds en français avec un ton professionnel et orienté action. 
-Utilise les chiffres fournis ci-dessus.
-Sois concis mais complet.`;
-    
-    // Appeler Gemini
-    const result = await geminiModel.generateContent(prompt);
-    const response = result.response.text();
-    
-    res.json({
-      success: true,
-      response: response,
-      provider: 'gemini',
-      model: model,
-      data_source: 'olap_real_time',
-      real_time_data: realTimeData,
-      timestamp: new Date().toISOString()
+    // Message système avec contexte du rapport
+    const systemMessage = aiReportContext ? 
+      `Tu es un assistant IA pour l'analyse de données ERP. ${aiReportContext}
+
+Utilise ce contexte pour répondre aux questions de l'utilisateur sur les données, les recommandations et les insights. 
+Si l'utilisateur pose des questions sur le rapport, base-toi sur ces informations.
+Sois précis et utile.` : 
+      'Tu es un assistant IA pour l\'analyse de données ERP. Aide l\'utilisateur à comprendre ses données et à prendre des décisions.';
+
+    const chat = model.startChat({
+      history: [
+        { role: 'user', parts: [{ text: systemMessage }] },
+        ...chatHistory
+      ],
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.7,
+      },
     });
-    
-  } catch (error) {
-    console.error('[AI Chat] Erreur Gemini:', error);
-    
-    // Mode fallback simple
-    const fallbackResponse = `🤖 **Assistant ERP** 
 
-Bonjour ! Je suis votre assistant pour ERP Distribution.
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const text = response.text();
 
-**Données actuelles :**
-- CA : 2,261,537 EUR
-- Commandes : 4,922
-- Clients : 793
-- Marge : 23.6%
-
-**Comment puis-je vous aider ?**
-Posez-moi vos questions sur :
-- Analyse des ventes
-- Performance clients
-- Recommandations business
-
-*Note: Mode temporaire - Erreur Gemini: ${error.message}*`;
-    
     res.json({
       success: true,
-      response: fallbackResponse,
-      provider: 'fallback',
-      error_details: error.message,
-      timestamp: new Date().toISOString()
+      response: text,
+      timestamp: new Date().toISOString(),
+      hasContext: !!aiReportContext
+    });
+
+  } catch (error) {
+    console.error('Erreur chat AI:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
+});
+
+// GET /ai-status
+router.get('/ai-status', (req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const provider = process.env.AI_PROVIDER || 'gemini';
+  
+  res.json({
+    success: true,
+    available: !!apiKey,
+    provider: provider,
+    status: apiKey ? 'configured' : 'missing_key'
+  });
 });
 
 module.exports = router;

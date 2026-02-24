@@ -45,7 +45,7 @@ router.post('/run', (req, res) => {
     return res.status(500).json({ error: msg });
   }
 
-  const proc = spawn('python', args, { cwd, env: { ...process.env } });
+  const proc = spawn('py', ['-3.12', ...args], { cwd, env: { ...process.env } });
 
   proc.stdout.on('data', (data) => {
     lastOutput += data.toString();

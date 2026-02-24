@@ -3,64 +3,75 @@
  */
 const AIPage = {
   pollInterval: null,
+  chatHistory: [],
 
   render() {
     return `
       <div class="page-header">
         <h1>AI Reporting</h1>
-        <p>Insights et recommandations assistées par IA</p>
+        <p>Reporting assiste par l'Intelligence Artificielle — Insights, recommandations et data storytelling</p>
       </div>
 
-      <div class="ai-controls">
-        <button id="btn-ai-run" class="btn btn-primary" onclick="AIPage.run(false)">
-          🤖 Générer rapport IA
-        </button>
-        <button id="btn-ai-stat" class="btn btn-outline" onclick="AIPage.run(true)">
-          📊 Statistique uniquement
-        </button>
-        <span id="ai-status" class="status-badge status-idle">Prêt</span>
+      <div class="ai-tabs">
+        <button class="tab-btn active" onclick="AIPage.switchTab('reports')">Rapports IA</button>
+        <button class="tab-btn" onclick="AIPage.switchTab('chat')">Chat IA</button>
       </div>
 
-      <!-- Chat compact -->
-      <div class="chart-card">
-        <h3>💬 Chat IA</h3>
-        <div class="chat-compact">
-          <div id="chat-messages" class="chat-messages-compact">
-            <div class="chat-welcome-compact">
-              👋 Posez vos questions sur les données business
-            </div>
+      <!-- Rapports Section -->
+      <div id="reports-section" class="tab-content active">
+        <div class="ai-controls">
+          <button id="btn-ai-run" class="btn btn-primary" onclick="AIPage.run(false)">
+            &#9733; Generer le rapport IA
+          </button>
+          <button id="btn-ai-stat" class="btn btn-outline" onclick="AIPage.run(true)">
+            Statistique uniquement
+          </button>
+          <span id="ai-status" class="status-badge status-idle">Pret</span>
+          <span id="ai-provider" class="ai-status-badge fallback">Mode: en attente</span>
+        </div>
+
+        <div id="ai-results">
+          <div class="chart-card" style="text-align:center;padding:60px 20px;">
+            <p style="color:var(--text-secondary);font-size:15px;">
+              Cliquez sur <strong>Generer le rapport IA</strong> pour lancer l'analyse.<br>
+              Le rapport fonctionne meme sans cle API (mode statistique).
+            </p>
+          </div>
+        </div>
+
+        <div id="ai-terminal-section" style="display:none;margin-top:20px;">
+          <div class="chart-card">
+            <h3>Logs d'execution</h3>
+            <div id="ai-terminal" class="terminal">En attente...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Section -->
+      <div id="chat-section" class="tab-content" style="display:none;">
+        <div class="chat-container">
+          <div class="chat-header">
+            <h3>&#128172; Chat avec l'IA</h3>
+            <button class="btn btn-outline btn-sm" onclick="AIPage.clearChat()">Effacer</button>
           </div>
           
-          <div class="chat-input-compact">
-            <textarea 
-              id="chat-input" 
-              placeholder="Votre question..."
-              rows="2"
-              onkeypress="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();AIPage.sendChatMessage();}"
-            ></textarea>
-            <button id="btn-chat-send" onclick="AIPage.sendChatMessage()" class="btn btn-primary btn-sm">
-              <span id="send-icon">💬</span>
-              <span id="send-text">Envoyer</span>
-            </button>
-            <div id="typing-indicator" class="typing-indicator" style="display:none;">
-              <span>🤖 L'IA réfléchit...</span>
+          <div id="chat-messages" class="chat-messages">
+            <div class="chat-message ai-message">
+              <div class="message-content">
+                Bonjour ! Je suis votre assistant IA pour l'analyse de données ERP. Posez-moi des questions sur vos données, demandez des insights ou des recommandations.
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div id="ai-results">
-        <div class="chart-card" style="text-align:center;padding:40px 20px;">
-          <p style="color:var(--text-secondary);">
-            Cliquez sur <strong>Générer rapport IA</strong> pour démarrer
-          </p>
-        </div>
-      </div>
-
-      <div id="ai-terminal-section" style="display:none;">
-        <div class="chart-card">
-          <h3>📋 Logs</h3>
-          <div id="ai-terminal" class="terminal-compact">En attente...</div>
+          <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+              <input type="text" id="chat-input" placeholder="Tapez votre message ici..." 
+                     onkeypress="if(event.key==='Enter') AIPage.sendMessage()">
+              <button id="chat-send-btn" class="btn btn-primary" onclick="AIPage.sendMessage()">
+                Envoyer
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -243,136 +254,131 @@ const AIPage = {
       .replace(/"/g, '&quot;');
   },
 
-  // Fonction pour le chat avec Gemini
-  async sendChatMessage() {
+  destroy() {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  },
+
+  // Chat methods
+  switchTab(tab) {
+    const reportsSection = document.getElementById('reports-section');
+    const chatSection = document.getElementById('chat-section');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+    
+    if (tab === 'reports') {
+      reportsSection.style.display = 'block';
+      reportsSection.classList.add('active');
+      chatSection.style.display = 'none';
+      chatSection.classList.remove('active');
+      tabBtns[0].classList.add('active');
+    } else {
+      reportsSection.style.display = 'none';
+      reportsSection.classList.remove('active');
+      chatSection.style.display = 'block';
+      chatSection.classList.add('active');
+      tabBtns[1].classList.add('active');
+    }
+  },
+
+  async sendMessage() {
     const input = document.getElementById('chat-input');
-    const messagesContainer = document.getElementById('chat-messages');
-    const sendButton = document.getElementById('btn-chat-send');
-    const sendIcon = document.getElementById('send-icon');
-    const sendText = document.getElementById('send-text');
-    const typingIndicator = document.getElementById('typing-indicator');
-    
     const message = input.value.trim();
+    
     if (!message) return;
-    
-    // Désactiver le champ et le bouton
-    input.disabled = true;
-    sendButton.disabled = true;
-    
-    // Afficher l'indicateur de chargement
-    typingIndicator.style.display = 'flex';
-    sendIcon.textContent = '⏳';
-    sendText.textContent = 'Envoi...';
-    
+
     // Ajouter le message utilisateur
-    this.addChatMessage(message, 'user');
-    
-    // Vider le champ
+    this.addMessage(message, 'user');
     input.value = '';
-    
+
+    // Désactiver le bouton pendant l'envoi
+    const sendBtn = document.getElementById('chat-send-btn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Envoi...';
+
     try {
-      // Appeler l'API Gemini
-      const response = await fetch('/api/ai/chat', {
+      const response = await fetch('/api/ai/ai-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: message,
-          context: 'business_analysis'
+          history: this.chatHistory
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
-        this.addChatMessage(data.response, 'assistant', data.provider);
+        this.addMessage(data.response, 'ai');
+        this.chatHistory.push(
+          { role: 'user', content: message },
+          { role: 'assistant', content: data.response }
+        );
+        
+        // Afficher l'indicateur de contexte si disponible
+        if (data.hasContext) {
+          this.showContextIndicator();
+        }
       } else {
-        this.addChatMessage('❌ Erreur: ' + (data.error || 'Erreur inconnue'), 'assistant', 'error');
+        this.addMessage(`Erreur: ${data.error}`, 'ai', true);
       }
-      
     } catch (error) {
-      console.error('[Chat] Erreur:', error);
-      this.addChatMessage('❌ Erreur de connexion avec Gemini', 'assistant', 'error');
+      this.addMessage(`Erreur de connexion: ${error.message}`, 'ai', true);
     } finally {
-      // Réactiver le champ et le bouton
-      input.disabled = false;
-      sendButton.disabled = false;
-      typingIndicator.style.display = 'none';
-      sendIcon.textContent = '💬';
-      sendText.textContent = 'Envoyer';
-      
-      // Remettre le focus sur le champ
-      input.focus();
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Envoyer';
     }
   },
 
-  addChatMessage(content, type, provider = 'gemini') {
+  addMessage(content, sender, isError = false) {
     const messagesContainer = document.getElementById('chat-messages');
-    
-    // Supprimer le message de bienvenue si c'est le premier message
-    const welcomeMessage = messagesContainer.querySelector('.chat-welcome');
-    if (welcomeMessage) {
-      welcomeMessage.remove();
-    }
-    
     const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${type}`;
-    messageDiv.style.cssText = `
-      margin: 15px 0;
-      padding: 16px 20px;
-      border-radius: 16px;
-      background: ${type === 'user' ? 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)'};
-      color: ${type === 'user' ? 'white' : 'var(--text-primary)'};
-      border-left: 4px solid ${type === 'user' ? '#0056b3' : '#28a745'};
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      animation: slideInUp 0.3s ease;
-      position: relative;
-    `;
-    
-    const timestamp = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    messageDiv.className = `chat-message ${sender}-message ${isError ? 'error' : ''}`;
     
     messageDiv.innerHTML = `
-      <div style="
-        font-weight:600;
-        margin-bottom:8px;
-        font-size:13px;
-        opacity:0.9;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-      ">
-        <span>${type === 'user' ? '👤 Vous' : '🤖 Gemini IA'}</span>
-        <span style="font-weight:400;">${timestamp}</span>
+      <div class="message-content">
+        ${this.escapeHtml(content)}
       </div>
-      <div style="
-        line-height:1.6;
-        white-space:pre-wrap;
-        font-size:15px;
-      ">${this.escapeHtml(content)}</div>
-      ${type === 'assistant' && provider !== 'error' ? `
-        <div style="
-          position:absolute;
-          top:8px;
-          right:8px;
-          background:rgba(40, 167, 69, 0.1);
-          color:#28a745;
-          padding:4px 8px;
-          border-radius:12px;
-          font-size:11px;
-          font-weight:600;
-        ">${provider.toUpperCase()}</div>
-      ` : ''}
     `;
-    
+
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   },
 
-  destroy() {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
+  clearChat() {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.innerHTML = `
+      <div class="chat-message ai-message">
+        <div class="message-content">
+          Chat effacé. Je suis votre assistant IA pour l'analyse de données ERP. Posez-moi des questions sur vos données.
+        </div>
+      </div>
+    `;
+    this.chatHistory = [];
+  },
+
+  showContextIndicator() {
+    const messagesContainer = document.getElementById('chat-messages');
+    const indicator = document.createElement('div');
+    indicator.className = 'context-indicator';
+    indicator.innerHTML = `
+      <div class="context-badge">
+        📊 Contexte du rapport IA chargé
+      </div>
+      <p style="font-size: 12px; color: var(--text-secondary); margin: 8px 0;">
+        Je peux maintenant répondre aux questions sur le dernier rapport généré.
+      </p>
+    `;
+    
+    // Insérer après le premier message de bienvenue
+    const firstMessage = messagesContainer.querySelector('.chat-message');
+    if (firstMessage) {
+      messagesContainer.insertBefore(indicator, firstMessage.nextSibling);
     }
   },
 };

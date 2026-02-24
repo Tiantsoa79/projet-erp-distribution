@@ -33,7 +33,7 @@ router.post('/run', (req, res) => {
 
   console.log(`[mining] Lancement: python ${args.join(' ')} (cwd: ${cwd})`);
 
-  const proc = spawn('python', args, { cwd, env: { ...process.env } });
+  const proc = spawn('py', ['-3.12', ...args], { cwd, env: { ...process.env } });
 
   proc.stdout.on('data', (data) => {
     lastOutput += data.toString();
