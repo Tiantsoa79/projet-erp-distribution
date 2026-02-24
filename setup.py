@@ -72,7 +72,9 @@ def create_venv():
         return True
     
     print("📦 Création de l'environnement virtuel...")
-    if not run_command(f"python -m venv {VENV_DIR}"):
+    # Utiliser des chemins bruts pour éviter les problèmes Windows
+    venv_path = str(VENV_DIR).replace('\\', '\\\\')
+    if not run_command(f"python -m venv \"{venv_path}\""):
         return False
     print("✅ Environnement virtuel créé")
     return True
@@ -85,19 +87,20 @@ def install_python_deps():
     
     print("📚 Installation des dépendances Python...")
     
-    # Déterminer le script d'activation
+    # Déterminer le script d'activation avec chemins Windows robustes
     if os.name == 'nt':  # Windows
-        pip_cmd = f"{VENV_DIR}\\Scripts\\pip"
-        activate_cmd = f"{VENV_DIR}\\Scripts\\activate"
+        pip_path = str(VENV_DIR / "Scripts" / "pip.exe").replace('\\', '\\\\')
+        requirements_path = str(REQUIREMENTS).replace('\\', '\\\\')
     else:  # Linux/Mac
-        pip_cmd = f"{VENV_DIR}/bin/pip"
-        activate_cmd = f"source {VENV_DIR}/bin/activate"
+        pip_path = str(VENV_DIR / "bin" / "pip")
+        requirements_path = str(REQUIREMENTS)
     
     # Mettre à jour pip
-    run_command(f"{pip_cmd} install --upgrade pip")
+    if not run_command(f"\"{pip_path}\" install --upgrade pip"):
+        return False
     
     # Installer les dépendances
-    if not run_command(f"{pip_cmd} install -r {REQUIREMENTS}"):
+    if not run_command(f"\"{pip_path}\" install -r \"{requirements_path}\""):
         return False
     
     print("✅ Dépendances Python installées")
@@ -200,33 +203,34 @@ def check_postgres():
         # Test erp_distribution
         conn = psycopg2.connect(
             host=os.getenv('PGHOST', 'localhost'),
-            port=int(os.getenv('PGPORT', '5432')),
             database='erp_distribution',
-            user=os.getenv('PGUSER', 'postgres'),
-            password=os.getenv('PGPASSWORD', '')
+            user=pg_user,
+            password=pg_password
         )
         conn.close()
         print("✅ Connexion erp_distribution OK")
         
         # Test etl_dw
         conn = psycopg2.connect(
-            host=os.getenv('PGHOST', 'localhost'),
-            port=int(os.getenv('PGPORT', '5432')),
+            host=pg_host,
+            port=pg_port,
             database='etl_dw',
-            user=os.getenv('PGUSER', 'postgres'),
-            password=os.getenv('PGPASSWORD', '')
+            user=pg_user,
+            password=pg_password
         )
         conn.close()
         print("✅ Connexion etl_dw OK")
         
         return True
         
+    except ImportError:
+        print("❌ Module psycopg2 non installé. Installation des dépendances Python d'abord...")
+        return False
     except Exception as e:
         print(f"❌ Erreur PostgreSQL: {e}")
         print("\n💡 Solutions possibles:")
         print("   1. Vérifiez que PostgreSQL est en cours d'exécution")
         print("   2. Vérifiez les identifiants dans .env")
-        print("   3. Vérifiez que l'utilisateur postgres a les droits de création de bases")
         return False
 
 def main():
@@ -241,42 +245,57 @@ def main():
     print("🚀 INSTALLATION ERP DISTRIBUTION")
     print("=" * 60)
     
-    # Étapes d'installation
+    # Ordre d'installation corrigé pour éviter les erreurs
     steps = [
-        ("Vérification Python", check_python),
-        ("Création environnement virtuel", create_venv),
-        ("Installation dépendances Python", install_python_deps),
+        ("Python", check_python),
         ("Configuration .env", setup_env),
-        ("Vérification PostgreSQL", check_postgres),
+        ("Environnement virtuel", create_venv),
+        ("Dépendances Python", install_python_deps),
+        ("PostgreSQL", check_postgres),
     ]
     
     if not args.skip_npm:
-        steps.append(("Installation dépendances Node.js", install_npm_deps))
+        steps.append(("Dépendances Node.js", install_npm_deps))
     
     if not args.skip_data:
         steps.append(("Import des données", import_data))
     
-    # Exécuter les étapes
     failed_steps = []
-    for name, func in steps:
-        print(f"\n📍 {name}...")
-        if not func():
-            failed_steps.append(name)
     
-    # Résultat
+    for step_name, step_func in steps:
+        print(f"\n📍 {step_name}...")
+        if not step_func():
+            failed_steps.append(step_name)
+    
     print("\n" + "=" * 60)
     if failed_steps:
-        print("❌ Échec de l'installation")
-        print("Étapes échouées :", ", ".join(failed_steps))
-        sys.exit(1)
+        print(f"❌ Échec de l'installation")
+        print(f"Étapes échouées : {', '.join(failed_steps)}")
+        print("\n💡 Solutions possibles:")
+        if "Python" in failed_steps:
+            print("   - Installez Python 3.8+ depuis https://python.org")
+        if "Dépendances Python" in failed_steps:
+            print("   - Vérifiez votre connexion internet")
+            print("   - Essayez: pip install --upgrade pip")
+        if "PostgreSQL" in failed_steps:
+            print("   - Démarrez PostgreSQL: pg_ctl -D /path/to/data start")
+            print("   - Vérifiez les identifiants dans .env")
+        if "Dépendances Node.js" in failed_steps:
+            print("   - Installez Node.js 18+ depuis https://nodejs.org")
+        return False
     else:
-        print("🎉 Installation réussie !")
-        print("\n📋 Prochaines étapes :")
-        print("1. Adaptez le fichier .env si nécessaire")
-        print("2. Lancez les services : python start_all.py")
-        print("3. Accédez à l'interface : http://localhost:3030")
-        print("4. Pour l'automatisation quotidienne : python daily_automation.py --schedule")
-        print("=" * 60)
+        print("✅ Installation terminée avec succès !")
+        print("\n🎯 Prochaines étapes :")
+        print("1. Activer l'environnement virtuel :")
+        if os.name == 'nt':
+            print(f"   {VENV_DIR}\\Scripts\\activate")
+        else:
+            print(f"   source {VENV_DIR}/bin/activate")
+        print("2. Lancer les services :")
+        print("   python start_all.py")
+        print("3. Accéder à l'interface :")
+        print("   http://localhost:3030")
+        return True
 
 if __name__ == "__main__":
     main()
